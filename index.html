@@ -1,0 +1,4072 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Three.js Tank Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        
+        /* Base menu styles */
+        #gameUI {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            color: white;
+            font-family: Arial, sans-serif;
+            z-index: 10;
+            display: none;
+            pointer-events: none;
+        }
+        
+        #gameUI > * {
+            pointer-events: auto;
+        }
+        
+        #mainDisplay {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 5px;
+            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: absolute;
+            bottom: 20px;
+            right: 20px; /* Position on right */
+            left: auto; /* Remove left positioning */
+            transform: none; /* Remove transform */
+            z-index: 100;
+            border: 2px solid rgba(255, 204, 0, 0.4);
+        }
+        
+        #tankInfo {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        #tankName {
+            font-weight: bold;
+            font-size: 1.4em;
+            margin: 0 0 5px 0;
+            color: #ffcc00;
+        }
+        
+        #currentSpeed {
+            font-size: 1.2em;
+            margin: 5px 0;
+        }
+        
+        #terrainName {
+            font-style: italic;
+            margin: 5px 0;
+        }
+        
+        /* Button styles */
+        .menuButtons {
+            display: flex;
+            margin-top: 10px;
+            gap: 10px;
+            position: relative; /* Add positioning context for popup menus */
+        }
+        
+        .iconButton {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: 1px solid rgba(255, 204, 0, 0.4); /* Added border for better visibility */
+            border-radius: 5px;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+            position: relative; /* Ensure buttons can position their popups */
+        }
+        
+        .iconButton:hover {
+            background: rgba(40, 40, 40, 0.9);
+            border-color: rgba(255, 204, 0, 0.8);
+        }
+        
+        /* Popup menu styles */
+        .popup {
+            position: absolute;
+            bottom: 100%; /* Position above the buttons instead of below */
+            right: 0; /* Align to the right instead of left */
+            margin-bottom: 10px; /* Add margin to the bottom instead of top */
+            background: rgba(0, 0, 0, 0.85);
+            border-radius: 5px;
+            padding: 15px;
+            width: 250px;
+            display: none;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            z-index: 101;
+        }
+        
+        .popup h3 {
+            color: #ffcc00;
+            margin-top: 0;
+            border-bottom: 1px solid #555;
+            padding-bottom: 5px;
+        }
+        
+        .popup .closeButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+        }
+        
+        .popup .closeButton:hover {
+            color: white;
+        }
+        
+        .closeButton svg {
+            width: 14px;
+            height: 14px;
+            fill: #aaa;
+            transition: fill 0.2s;
+        }
+        
+        .closeButton:hover svg {
+            fill: white;
+        }
+        
+        .statRow {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+        }
+        
+        .statLabel {
+            color: #aaa;
+        }
+        
+        .statValue {
+            font-weight: bold;
+        }
+        
+        /* Tank Icon */
+        .tankIcon {
+            width: 24px;
+            height: 24px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .tankIcon svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+        
+        /* Settings Icon */
+        .settingsIcon {
+            width: 24px;
+            height: 24px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .settingsIcon svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+        
+        /* Camera Icon */
+        .cameraIcon {
+            width: 24px;
+            height: 24px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .cameraIcon svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+        
+        /* Right side tank view */
+        #tankViewContainer {
+            width: 160px;
+            height: 160px; /* Made smaller than before */
+            background-color: rgba(0, 0, 0, 0.7);
+            border: 2px solid rgba(255, 204, 0, 0.5); /* Slightly more visible border */
+            border-radius: 10px; /* Increased corner radius */
+            overflow: hidden;
+            margin: 0;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 20; /* Lower than mainMenu but higher than base gameUI */
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.6); /* Enhanced shadow */
+            display: none; /* Hidden by default, shown when game starts */
+            pointer-events: none; /* Initially don't capture mouse events */
+        }
+        
+        #tankView {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        #tankViewCanvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        #tankViewLabel {
+            display: none; /* Hide the tank name label */
+        }
+        
+        /* Main Menu Styles */
+        #mainMenu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.8)), url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=1470');
+            background-size: cover;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999; /* Extremely high z-index to ensure it's on top of everything */
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            pointer-events: auto; /* Ensure it captures all mouse events */
+        }
+        
+        #mainMenu::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, rgba(30, 30, 30, 0.4), rgba(0, 0, 0, 0.8));
+            z-index: -1;
+        }
+        
+        /* Mini Map styles */
+        #miniMapContainer {
+            position: absolute;
+            bottom: 20px; /* Move lower */
+            left: 20px;
+            width: 150px;
+            height: 150px;
+            background-color: rgba(0, 0, 0, 0.6);
+            border: 3px solid rgba(255, 255, 0, 0.5);
+            border-radius: 50%;
+            overflow: hidden;
+            z-index: 100;
+            display: block !important;
+        }
+        
+        #miniMapCanvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+        
+        #miniMapLabel {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            font-size: 12px;
+            color: white;
+            font-family: Arial, sans-serif;
+            pointer-events: none;
+            text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.7);
+            z-index: 101;
+        }
+        
+        .logoContainer {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .gameLogo {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: white;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+        
+        .logoWrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .logoIcon {
+            color: #3a86ff;
+            margin-right: 15px;
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        
+        .logoTagline {
+            font-size: 1.1rem;
+            color: #ffffff;
+            letter-spacing: 2px;
+            opacity: 0.8;
+            font-weight: 300;
+        }
+        
+        .menuContainer {
+            width: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 20px;
+        }
+        
+        #playerNameInput {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1.1rem;
+            text-align: center;
+            outline: none;
+            transition: background 0.3s;
+        }
+        
+        #playerNameInput:focus {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        #playerNameInput::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        #playButton {
+            background: #3a86ff;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 500;
+            padding: 15px;
+            cursor: pointer;
+            margin-bottom: 25px;
+            width: 100%;
+            transition: background 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            z-index: 10000; /* Even higher than the main menu */
+            pointer-events: auto;
+        }
+        
+        #playButton:hover {
+            background: #2767cc;
+        }
+        
+        #playButton:active {
+            transform: translateY(1px);
+        }
+        
+        /* CSS for credits section moved up to replace verification CSS */
+        .credits {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.8rem;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .credits h3 {
+            color: rgba(255, 255, 255, 0.7);
+            margin: 0 0 10px 0;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-weight: normal;
+        }
+        
+        .credits p {
+            margin: 3px 0;
+        }
+        
+        .sponsors {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+            max-width: 400px;
+        }
+        
+        .sponsor {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.8rem;
+            transition: color 0.3s;
+        }
+        
+        .sponsor:hover {
+            color: #3a86ff;
+        }
+        
+        /* Hide game UI by default until play is clicked */
+        #gameUI {
+            display: none;
+        }
+        
+        /* Reload Info styles */
+        #reloadInfo {
+            position: absolute;
+            bottom: 350px; /* Position it further up above the mini map */
+            left: 20px;
+            color: white;
+            font-family: monospace;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+            z-index: 100;
+        }
+        
+        /* Responsive Design and Mobile Support */
+        @media screen and (max-width: 768px) {
+            #mainDisplay {
+                bottom: 10px;
+                right: 10px;
+                min-width: 150px;
+                font-size: 0.9em;
+                padding: 10px;
+            }
+            
+            #tankName {
+                font-size: 1.2em;
+            }
+            
+            #currentSpeed {
+                font-size: 1em;
+            }
+            
+            .iconButton {
+                width: 36px;
+                height: 36px;
+                font-size: 18px;
+            }
+            
+            .popup {
+                width: 200px;
+            }
+            
+            #tankViewContainer {
+                width: 120px;
+                height: 120px;
+                top: 10px;
+                right: 10px;
+            }
+            
+            #miniMapContainer {
+                width: 120px;
+                height: 120px;
+                bottom: 10px;
+                left: 10px;
+            }
+        }
+        
+        @media screen and (max-width: 480px) {
+            #mainDisplay {
+                bottom: 5px;
+                right: 5px;
+                min-width: 120px;
+                font-size: 0.8em;
+                padding: 8px;
+            }
+            
+            #tankName {
+                font-size: 1em;
+            }
+            
+            #currentSpeed {
+                font-size: 0.9em;
+            }
+            
+            .iconButton {
+                width: 32px;
+                height: 32px;
+                font-size: 16px;
+            }
+            
+            .popup {
+                width: 180px;
+            }
+            
+            #tankViewContainer {
+                width: 100px;
+                height: 100px;
+                top: 5px;
+                right: 5px;
+            }
+            
+            #miniMapContainer {
+                width: 100px;
+                height: 100px;
+                bottom: 5px;
+                left: 5px;
+            }
+            
+            .menuButtons {
+                gap: 5px;
+            }
+        }
+        
+        /* Touch controls for mobile */
+        #touchControls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            display: none;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        
+        #joystickContainer {
+            width: 150px;
+            height: 150px;
+            position: relative;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 50%;
+            border: 2px solid rgba(255, 204, 0, 0.4);
+            pointer-events: auto;
+            touch-action: none;
+        }
+        
+        #joystickKnob {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 204, 0, 0.6);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+        }
+        
+        #fireTouchButton {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 50, 50, 0.4);
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            font-size: 24px;
+            pointer-events: auto;
+            z-index: 1000;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+            box-shadow: 0 0 15px rgba(255, 50, 50, 0.3);
+        }
+        
+        /* Adjust minimap position for mobile */
+        @media screen and (max-width: 768px) {
+            #miniMapContainer {
+                bottom: 190px !important; /* Move up to avoid joystick */
+                left: 20px !important;
+                width: 120px !important;
+                height: 120px !important;
+            }
+            
+            #joystickContainer {
+                width: 120px;
+                height: 120px;
+            }
+            
+            #joystickKnob {
+                width: 40px;
+                height: 40px;
+            }
+            
+            #fireTouchButton {
+                width: 80px;
+                height: 80px;
+                bottom: 30px;
+                right: 30px;
+                font-size: 20px;
+            }
+        }
+        
+        @media screen and (max-width: 480px) {
+            #miniMapContainer {
+                bottom: 170px !important;
+                left: 10px !important;
+                width: 100px !important;
+                height: 100px !important;
+            }
+            
+            #joystickContainer {
+                width: 100px;
+                height: 100px;
+            }
+            
+            #joystickKnob {
+                width: 34px;
+                height: 34px;
+            }
+            
+            #fireTouchButton {
+                width: 70px;
+                height: 70px;
+                bottom: 20px;
+                right: 20px;
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Menu -->
+    <div id="mainMenu">
+        <div class="logoContainer">
+            <div class="logoWrapper">
+                <span class="logoIcon">&gt;</span>
+                <span class="gameLogo">TANKS</span>
+            </div>
+            <div class="logoTagline">A fun free-to-play tank battle game</div>
+            <div class="logoTagline">Vibe coded by Liam Attwood with Grok + Cursor</div>
+        </div>
+        
+        <div class="menuContainer">
+            <input type="text" id="playerNameInput" placeholder="Enter your callsign" maxlength="15">
+            
+            <button id="playButton">JOIN THE BATTLE</button>
+            
+            <div class="credits">
+                <p style="margin-top: 15px;">Copyright 2025 tanks</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main UI -->
+    <div id="gameUI">
+        <div id="miniMapContainer">
+            <canvas id="miniMapCanvas" width="150" height="150"></canvas>
+            <div id="miniMapLabel">Map</div>
+        </div>
+        
+        <!-- Tank view container moved outside mainDisplay -->
+        <div id="tankViewContainer">
+            <div id="tankView">
+                <canvas id="tankViewCanvas"></canvas>
+                <div id="tankViewLabel">Tank Name</div>
+            </div>
+        </div>
+        
+        <div id="mainDisplay">
+            <p id="tankName">Tank Name</p>
+            
+            <div id="tankInfo">
+                <p id="currentSpeed">Speed: 0 km/h</p>
+                <p id="terrainName">Terrain: Normal</p>
+            </div>
+            
+            <div class="menuButtons">
+                <button id="tankInfoBtn" class="iconButton" title="Tank Information">
+                    <span class="tankIcon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M20,10L20,8h-3L15,4h-4L9,8H6l0,2H4v2h2l0,2h14l0-2h2v-2H20z M15,14H9v-3h6V14z M10,7h4l1,1h-6L10,7z"/>
+                        </svg>
+                    </span>
+                </button>
+                <button id="resetCameraBtn" class="iconButton" title="Reset Camera View">
+                    <span class="cameraIcon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M9 3L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2h-3.17L15 3H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+                            <path d="M12 17c1.65 0 3-1.35 3-3s-1.35-3-3-3-3 1.35-3 3 1.35 3 3 3z"/>
+                        </svg>
+                    </span>
+                </button>
+                <button id="settingsBtn" class="iconButton" title="Settings">
+                    <span class="settingsIcon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+                        </svg>
+                    </span>
+                </button>
+                
+                <!-- Add the popup elements inside the menu buttons div -->
+                <div id="tankInfoPopup" class="popup">
+                    <h3>Tank Information</h3>
+                    <button class="closeButton">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                        </svg>
+                    </button>
+                    <div class="statRow">
+                        <span class="statLabel">Tank Model:</span>
+                        <span class="statValue" id="tankModel">Challenger</span>
+                    </div>
+                    <div class="statRow">
+                        <span class="statLabel">Max Speed:</span>
+                        <span class="statValue"><span id="tankMaxSpeed">60</span> <span class="speedUnit">km/h</span></span>
+                    </div>
+                    <div class="statRow">
+                        <span class="statLabel">Acceleration:</span>
+                        <span class="statValue"><span id="tankAccel">Medium</span></span>
+                    </div>
+                </div>
+                
+                <div id="settingsPopup" class="popup">
+                    <h3>Game Settings</h3>
+                    <button class="closeButton">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                        </svg>
+                    </button>
+                    <div class="statRow">
+                        <span class="statLabel">Speed Units:</span>
+                        <select id="speedUnitSelector">
+                            <option value="km/h" selected>km/h</option>
+                            <option value="mph">mph</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script>
+        // Tank configurations
+        const tankTypes = [
+            { 
+                name: "Leopard", 
+                color: 0x4B5320, 
+                maxSpeed: 0.25, 
+                acceleration: 0.015,
+                turretLength: 2.2,
+                bodyWidth: 2.1,
+                weight: 60, // in tons
+                accelerationRating: "High",
+                // Adding new properties for model customization
+                trackHeight: 0.4,
+                turretHeight: 0.6,
+                gunLength: 3.0,
+                turretOffset: 0.2, // Turret positioned slightly back
+                hasSidePanels: true,
+                antennaHeight: 0.7,
+                // Add shooting properties
+                projectileSpeed: 1.0,
+                reloadTime: 1500, // in milliseconds
+                projectileSize: 0.2
+            },
+            { 
+                name: "Abrams", 
+                color: 0x5A4A2F, 
+                maxSpeed: 0.22, 
+                acceleration: 0.012,
+                turretLength: 2.3,
+                bodyWidth: 2.3,
+                weight: 70, // in tons
+                accelerationRating: "Medium",
+                // Adding new properties for model customization
+                trackHeight: 0.5,
+                turretHeight: 0.7,
+                gunLength: 3.2,
+                turretOffset: 0, // Centered turret
+                hasSidePanels: true,
+                antennaHeight: 0.5,
+                // Add shooting properties
+                projectileSpeed: 1.1,
+                reloadTime: 1800, // in milliseconds
+                projectileSize: 0.22
+            },
+            { 
+                name: "T-90", 
+                color: 0x2D3B1F, 
+                maxSpeed: 0.20, 
+                acceleration: 0.011,
+                turretLength: 2.0,
+                bodyWidth: 2.0,
+                weight: 48, // in tons
+                accelerationRating: "Medium",
+                // Adding new properties for model customization
+                trackHeight: 0.4,
+                turretHeight: 0.5, // Lower profile turret
+                gunLength: 2.8,
+                turretOffset: -0.2, // Turret positioned slightly forward
+                hasSidePanels: false, // No side panels on Russian tanks
+                antennaHeight: 0.6,
+                // Add shooting properties
+                projectileSpeed: 1.05,
+                reloadTime: 1700, // in milliseconds
+                projectileSize: 0.21
+            },
+            { 
+                name: "Challenger", 
+                color: 0x727B61, 
+                maxSpeed: 0.18, 
+                acceleration: 0.010,
+                turretLength: 2.4,
+                bodyWidth: 2.2,
+                weight: 75, // in tons
+                accelerationRating: "Low",
+                // Adding new properties for model customization
+                trackHeight: 0.55,
+                turretHeight: 0.8, // Tallest turret
+                gunLength: 3.4, // Longest gun
+                turretOffset: 0.3, // Turret positioned more to the back
+                hasSidePanels: true,
+                antennaHeight: 0.9, // Tall antenna
+                // Add shooting properties
+                projectileSpeed: 1.2,
+                reloadTime: 2000, // in milliseconds
+                projectileSize: 0.25
+            },
+            { 
+                name: "Type 99", 
+                color: 0x576C3E, 
+                maxSpeed: 0.23, 
+                acceleration: 0.013,
+                turretLength: 2.1,
+                bodyWidth: 2.0,
+                weight: 54, // in tons
+                accelerationRating: "Medium-High",
+                // Adding new properties for model customization
+                trackHeight: 0.35,
+                turretHeight: 0.5,
+                gunLength: 2.9,
+                turretOffset: -0.1, // Slightly forward turret
+                hasSidePanels: false,
+                antennaHeight: 0.6,
+                // Add shooting properties
+                projectileSpeed: 1.15,
+                reloadTime: 1600, // in milliseconds
+                projectileSize: 0.2
+            }
+        ];
+        
+        // Choose a random tank for this session
+        const currentTankIndex = Math.floor(Math.random() * tankTypes.length);
+        const currentTank = tankTypes[currentTankIndex];
+        
+        // Initialize speed unit setting
+        let currentUnit = 'km/h';
+        
+        // Update tank name in UI
+        document.getElementById('tankName').textContent = currentTank.name;
+        
+        // Update tank info popup elements if they exist
+        const tankModel = document.getElementById('tankModel');
+        if (tankModel) tankModel.textContent = currentTank.name;
+        
+        const tankMaxSpeed = document.getElementById('tankMaxSpeed');
+        if (tankMaxSpeed) {
+            // Calculate max speed directly instead of using calculateMaxSpeed()
+            const maxSpeedUnitsPerSecond = currentTank.maxSpeed * 60; // Frames per second
+            const maxSpeedKmH = maxSpeedUnitsPerSecond * 3.6;
+            const maxSpeed = currentUnit === 'km/h' ? maxSpeedKmH : maxSpeedKmH * 0.621371;
+            tankMaxSpeed.textContent = Math.round(maxSpeed);
+        }
+        
+        const tankAccel = document.getElementById('tankAccel');
+        if (tankAccel) tankAccel.textContent = currentTank.accelerationRating;
+        
+        // Add reload time to UI
+        const reloadInfoElement = document.createElement('div');
+        reloadInfoElement.id = 'reloadInfo';
+        reloadInfoElement.style.position = 'absolute';
+        reloadInfoElement.style.bottom = '180px'; // Changed from 140px to 180px to move it up
+        reloadInfoElement.style.left = '20px';
+        reloadInfoElement.style.color = 'white';
+        reloadInfoElement.style.fontFamily = 'monospace';
+        reloadInfoElement.style.fontSize = '16px';
+        reloadInfoElement.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.7)';
+        reloadInfoElement.innerHTML = 'Reload: <span style="color:#00FF00">READY</span>';
+        document.body.appendChild(reloadInfoElement);
+        
+        // Add tooltip explaining the speed-reload relationship
+        const tooltipElement = document.createElement('div');
+        tooltipElement.id = 'reloadTooltip';
+        tooltipElement.style.position = 'absolute';
+        tooltipElement.style.top = '20px';
+        tooltipElement.style.left = '50%';
+        tooltipElement.style.transform = 'translateX(-50%)';
+        tooltipElement.style.color = '#AAFFAA';
+        tooltipElement.style.fontFamily = 'monospace';
+        tooltipElement.style.fontSize = '14px';
+        tooltipElement.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.7)';
+        tooltipElement.style.maxWidth = '500px';
+        tooltipElement.style.textAlign = 'center';
+        tooltipElement.style.padding = '5px 10px';
+        tooltipElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        tooltipElement.style.borderRadius = '5px';
+        tooltipElement.innerHTML = '<span style="color:#FFFF00">TIP:</span> Slow down to reload faster!';
+        document.body.appendChild(tooltipElement);
+        
+        // Array of game tips to rotate through
+        const gameTips = [
+            "Slow down to reload faster!",
+            "Different tanks have different reload times and speed.",
+            "The Challenger tank is slow but has powerful shells.",
+            "The Leopard tank has the best acceleration.",
+            "Mud terrain will slow you down and pull you toward its center.",
+            "Use the spacebar to fire your main gun.",
+            "WASD or Arrow keys control tank movement.",
+            "Try to avoid colliding with buildings and obstacles.",
+            "Shooting while moving reduces accuracy and increases reload time.",
+            "Stay near cover for protection when reloading."
+            
+        ];
+        
+        // Set up tip rotation
+        let currentTipIndex = 0;
+        setInterval(() => {
+            currentTipIndex = (currentTipIndex + 1) % gameTips.length;
+            tooltipElement.innerHTML = '<span style="color:#FFFF00">TIP:</span> ' + gameTips[currentTipIndex];
+        }, 5000); // Change tip every 5 seconds
+        
+        // Global variable to track last calculated dynamic reload time
+        let currentDynamicReloadTime = currentTank.reloadTime;
+        
+        // Initialize ammo variables
+        let ammo = 5;
+        let maxAmmo = 5;
+        
+        // Make baseMaxSpeed a global variable on the window object to avoid redeclaration errors
+        window.baseMaxSpeed = currentTank.maxSpeed;
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Tank view renderer setup
+        const tankViewCanvas = document.getElementById('tankViewCanvas');
+        const tankViewRenderer = new THREE.WebGLRenderer({ 
+            canvas: tankViewCanvas, 
+            antialias: true,
+            alpha: true 
+        });
+        tankViewRenderer.setSize(160, 160); // Updated size to match new container dimensions
+        tankViewRenderer.setClearColor(0x000000, 0); // Transparent background
+
+        // Tank view camera setup
+        const tankViewCamera = new THREE.PerspectiveCamera(40, 1, 0.1, 50); // Increased FOV for more zoomed out view
+        // We'll position this camera in the animation loop
+
+        // Create a separate scene for tank view
+        const tankViewScene = new THREE.Scene();
+        
+        // Add lighting to tank view scene
+        const tankViewAmbientLight = new THREE.AmbientLight(0x565C66, 0.6);
+        tankViewScene.add(tankViewAmbientLight);
+        
+        const tankViewDirectionalLight = new THREE.DirectionalLight(0xFFFAF0, 0.9);
+        tankViewDirectionalLight.position.set(-2, 4, -2);
+        tankViewScene.add(tankViewDirectionalLight);
+        
+        // Create a separate tank model for the tank view
+        const tankViewModel = createTankModel(currentTank);
+        // Rotate the tank model 180 degrees so its front faces the camera
+        tankViewModel.rotation.y = Math.PI;
+        tankViewScene.add(tankViewModel);
+
+        // No need to update tank label since it's hidden
+        
+        // Enhanced Daytime Lighting
+        const ambientLight = new THREE.AmbientLight(0x565C66, 0.4); // Reduced intensity and more neutral blue-gray
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xFFFAF0, 0.8); // Reduced intensity and more natural color
+        directionalLight.position.set(-50, 180, -30); // Position like the sun
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 1024;
+        directionalLight.shadow.mapSize.height = 1024;
+        directionalLight.shadow.camera.near = 10;
+        directionalLight.shadow.camera.far = 200;
+        directionalLight.shadow.camera.left = -50;
+        directionalLight.shadow.camera.right = 50;
+        directionalLight.shadow.camera.top = 50;
+        directionalLight.shadow.camera.bottom = -50;
+        scene.add(directionalLight);
+        
+        // Add a hemisphere light for more realistic outdoor lighting
+        const hemisphereLight = new THREE.HemisphereLight(0x88A2B5, 0x547055, 0.4); // More subdued colors and reduced intensity
+        scene.add(hemisphereLight);
+        
+        // Create Sky with clouds
+        function createSky() {
+            // Sky
+            const skyGeo = new THREE.SphereGeometry(500, 32, 32);
+            const skyMat = new THREE.MeshBasicMaterial({
+                color: 0x6B8CAA, // More muted blue for the sky
+                side: THREE.BackSide
+            });
+            const sky = new THREE.Mesh(skyGeo, skyMat);
+            scene.add(sky);
+            
+            // Clouds
+            // Create procedural cloud texture
+            function createCloudTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+                
+                // Fill with transparent background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0)';
+                ctx.fillRect(0, 0, 512, 512);
+                
+                // Create cloud-like shapes
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                
+                // Parameters for cloud generation
+                const numClouds = 15;
+                const maxRadius = 60;
+                const minRadius = 30;
+                
+                for (let i = 0; i < numClouds; i++) {
+                    // Create a cloud by drawing overlapping circles
+                    const centerX = Math.random() * 512;
+                    const centerY = Math.random() * 512;
+                    const cloudSize = minRadius + Math.random() * (maxRadius - minRadius);
+                    const numBlobs = 5 + Math.floor(Math.random() * 5);
+                    
+                    // Draw main blob
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, cloudSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Draw surrounding blobs
+                    for (let j = 0; j < numBlobs; j++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const distance = cloudSize * 0.6;
+                        const blobX = centerX + Math.cos(angle) * distance;
+                        const blobY = centerY + Math.sin(angle) * distance;
+                        const blobSize = cloudSize * (0.5 + Math.random() * 0.5);
+                        
+                        ctx.beginPath();
+                        ctx.arc(blobX, blobY, blobSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+                
+                // Apply Gaussian blur effect (simple approximation)
+                ctx.globalAlpha = 0.3;
+                ctx.filter = 'blur(4px)';
+                ctx.drawImage(canvas, 0, 0);
+                
+                // Reset filters
+                ctx.filter = 'none';
+                ctx.globalAlpha = 1.0;
+                
+                // Create texture from canvas
+                return new THREE.CanvasTexture(canvas);
+            }
+            
+            const cloudTexture = createCloudTexture();
+            const cloudMaterial = new THREE.MeshLambertMaterial({
+                map: cloudTexture,
+                transparent: true,
+                opacity: 0.6 // Less visible clouds
+            });
+            
+            // Create a cloud plane
+            const cloudGeo = new THREE.PlaneGeometry(1000, 1000);
+            const cloudPlane = new THREE.Mesh(cloudGeo, cloudMaterial);
+            cloudPlane.position.y = 120;
+            cloudPlane.rotation.x = Math.PI / 2;
+            scene.add(cloudPlane);
+            
+            // Create a second cloud plane with offset
+            const cloudPlane2 = new THREE.Mesh(cloudGeo, cloudMaterial);
+            cloudPlane2.position.y = 150;
+            cloudPlane2.rotation.x = Math.PI / 2;
+            cloudPlane2.rotation.z = Math.PI / 4;
+            scene.add(cloudPlane2);
+            
+            return { cloudPlane, cloudPlane2 };
+        }
+        
+        const skyElements = createSky();
+        
+        // Enable shadows on renderer
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        
+        // Add subtle fog for atmosphere and depth
+        scene.fog = new THREE.FogExp2(0x8A9EAE, 0.005);
+
+        // Create map boundaries visual markers
+        function createMapBoundaries() {
+            const boundarySize = 48; // Same as our respawn boundary
+            const markerHeight = 8; // Much taller wall-like markers
+            const markerSpacing = 2; // Closer spacing for a continuous wall effect
+            
+            // Create a group to hold all boundary markers
+            const boundaryGroup = new THREE.Group();
+            
+            // Create grid texture for boundary markers
+            const gridTexture = createGridTexture();
+            
+            // Create marker geometry and material
+            const markerGeometry = new THREE.BoxGeometry(0.2, markerHeight, 0.2);
+            const markerMaterial = new THREE.MeshPhongMaterial({ 
+                map: gridTexture,
+                color: 0xFFFFFF, // White base to let the texture show clearly
+                transparent: true,
+                opacity: 0.7,
+                emissive: 0x0066FF,
+                emissiveIntensity: 0.3,
+                wireframe: false
+            });
+            
+            // Place markers along the perimeter
+            for (let x = -boundarySize; x <= boundarySize; x += markerSpacing) {
+                // North boundary
+                const markerN = new THREE.Mesh(markerGeometry, markerMaterial);
+                markerN.position.set(x, markerHeight/2, -boundarySize);
+                markerN.userData = { originalY: markerHeight/2, phase: Math.random() * Math.PI * 2 };
+                boundaryGroup.add(markerN);
+                
+                // South boundary
+                const markerS = new THREE.Mesh(markerGeometry, markerMaterial);
+                markerS.position.set(x, markerHeight/2, boundarySize);
+                markerS.userData = { originalY: markerHeight/2, phase: Math.random() * Math.PI * 2 };
+                boundaryGroup.add(markerS);
+            }
+            
+            for (let z = -boundarySize; z <= boundarySize; z += markerSpacing) {
+                // East boundary
+                const markerE = new THREE.Mesh(markerGeometry, markerMaterial);
+                markerE.position.set(boundarySize, markerHeight/2, z);
+                markerE.userData = { originalY: markerHeight/2, phase: Math.random() * Math.PI * 2 };
+                boundaryGroup.add(markerE);
+                
+                // West boundary
+                const markerW = new THREE.Mesh(markerGeometry, markerMaterial);
+                markerW.position.set(-boundarySize, markerHeight/2, z);
+                markerW.userData = { originalY: markerHeight/2, phase: Math.random() * Math.PI * 2 };
+                boundaryGroup.add(markerW);
+            }
+            
+            scene.add(boundaryGroup);
+            
+            return boundaryGroup;
+        }
+        
+        // Create a grid texture for the wall
+        function createGridTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 512; // Taller to fit the wall
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Fill with a transparent background
+            ctx.fillStyle = "rgba(0, 0, 0, 0)";
+            ctx.fillRect(0, 0, 128, 512);
+            
+            // Draw grid lines
+            ctx.strokeStyle = "#0088FF";
+            ctx.lineWidth = 2;
+            
+            // Horizontal lines
+            const hSpacing = 32;
+            for (let y = 0; y <= 512; y += hSpacing) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(128, y);
+                ctx.stroke();
+            }
+            
+            // Vertical lines
+            const vSpacing = 32;
+            for (let x = 0; x <= 128; x += vSpacing) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, 512);
+                ctx.stroke();
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(1, 4); // Repeat vertically to stretch pattern
+            
+            return texture;
+        }
+        
+        // Create boundary markers
+        const boundaryMarkers = createMapBoundaries();
+
+        // Ground
+        const groundGeometry = new THREE.PlaneGeometry(100, 100, 20, 20); // Added more segments for terrain detail
+        const groundMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0x3F5E3A, // Darker, more muted green
+            shininess: 5, // Reduced shininess for a more matte look
+            flatShading: true, // Enable flat shading for more terrain-like appearance
+            wireframe: false
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true; // Ground receives shadows
+        scene.add(ground);
+        
+        // Create terrain zones in strategic locations
+        const terrainZones = [];
+        
+        // Define terrain zones to match our map districts
+        const terrainDefinitions = [
+            // Mud zone near residential area - natural pond/swamp
+            {
+                type: 'mud',
+                position: { x: -35, z: 30 },
+                radius: 8,
+                color: 0x3D2A18,
+                properties: {
+                    resistanceMultiplier: 0.2,
+                    accelerationMultiplier: 1.5,
+                    pullToCenter: true,
+                    pullStrength: 0.001,
+                    maxSpeedMultiplier: 1.3
+                }
+            },
+            // Rocky zone in industrial area - quarry/construction site
+            {
+                type: 'rocky',
+                position: { x: 28, z: -20 },
+                radius: 10,
+                color: 0x5A5A5A,
+                properties: {
+                    resistanceMultiplier: 1.8,
+                    accelerationMultiplier: 0.6,
+                    pullToCenter: false,
+                    maxSpeedMultiplier: 0.6
+                }
+            },
+            // Ice/slippery zone in the northwest - frozen pond
+            {
+                type: 'ice',
+                position: { x: -30, z: -30 },
+                radius: 7,
+                color: 0xC2E6F2,
+                properties: {
+                    resistanceMultiplier: 0.1,
+                    accelerationMultiplier: 0.4,
+                    pullToCenter: false,
+                    maxSpeedMultiplier: 1.2
+                }
+            }
+        ];
+        
+        // Create all terrain zones from definitions
+        for (const def of terrainDefinitions) {
+            const zoneGeometry = new THREE.CircleGeometry(def.radius, 32);
+            const zoneMaterial = new THREE.MeshPhongMaterial({ 
+                color: def.color,
+                shininess: def.type === 'mud' ? 3 : (def.type === 'ice' ? 60 : 10)
+            });
+            
+            const zone = new THREE.Mesh(zoneGeometry, zoneMaterial);
+            zone.rotation.x = -Math.PI / 2;
+            zone.position.set(def.position.x, 0.01, def.position.z);
+            zone.receiveShadow = true;
+            scene.add(zone);
+            
+            // For the mud zone, store it separately for the pulsing effect
+            if (def.type === 'mud') {
+                mudZone = zone;
+            }
+            
+        terrainZones.push({ 
+                mesh: zone, 
+                type: def.type,
+                ...def.properties
+            });
+        }
+        
+        // Add pulsating effect to the mud zone
+        let mudPulsePhase = 0;
+
+        // Improved shipping container placement with better distribution and no overlapping
+        function placeContainersWithoutOverlap() {
+            const containers = [];
+            const containerWidth = 4;
+            const containerLength = 8;
+            
+            // Define a storage/industrial area in the northeast quadrant of the map
+            const storageAreaCenterX = 30;
+            const storageAreaCenterZ = -30;
+            
+            // Container yard - a grid of containers with proper spacing
+            const containerPositions = [
+                // Row 1 - aligned containers
+                { x: storageAreaCenterX - 12, z: storageAreaCenterZ - 6, rotation: 0 },
+                { x: storageAreaCenterX - 12, z: storageAreaCenterZ + 6, rotation: 0 },
+                // Row 2 - aligned containers
+                { x: storageAreaCenterX, z: storageAreaCenterZ - 6, rotation: 0 },
+                { x: storageAreaCenterX, z: storageAreaCenterZ + 6, rotation: 0 },
+                // Row 3 - perpendicular containers
+                { x: storageAreaCenterX + 12, z: storageAreaCenterZ - 6, rotation: Math.PI/2 },
+                { x: storageAreaCenterX + 12, z: storageAreaCenterZ + 6, rotation: Math.PI/2 },
+                
+                // Scattered containers in the northwest area (military or industrial zone)
+                { x: -25, z: -35, rotation: Math.PI/4 },
+                { x: -35, z: -30, rotation: -Math.PI/6 },
+                
+                // Containers near south area (commercial zone)
+                { x: -10, z: 35, rotation: Math.PI/3 },
+                { x: 15, z: 40, rotation: -Math.PI/8 }
+            ];
+            
+            // Create all containers at predefined positions
+            for (const position of containerPositions) {
+                    // Check distance from terrain zones
+                    let tooCloseToTerrain = false;
+                    for (const zone of terrainZones) {
+                        const zonePosition = new THREE.Vector2(zone.mesh.position.x, zone.mesh.position.z);
+                    const containerPosition = new THREE.Vector2(position.x, position.z);
+                        const distanceToZone = zonePosition.distanceTo(containerPosition);
+                    if (distanceToZone < zone.mesh.geometry.parameters.radius + 2) {
+                            tooCloseToTerrain = true;
+                            break;
+                        }
+                    }
+                    
+                if (!tooCloseToTerrain) {
+                    const containerGeometry = new THREE.BoxGeometry(containerWidth, 2, containerLength);
+                    const containerMaterial = new THREE.MeshPhongMaterial({ 
+                        color: 0x2D5070, // Darker, more realistic shipping container blue 
+                        shininess: 15
+                    });
+                    const container = new THREE.Mesh(containerGeometry, containerMaterial);
+                    container.position.set(position.x, 1, position.z);
+                    container.rotation.y = position.rotation;
+                    container.castShadow = true;
+                    container.receiveShadow = true;
+                    scene.add(container);
+                    containers.push(container);
+                }
+            }
+            
+            return containers;
+        }
+
+        // Replace the old container creation with the new method
+        const containers = placeContainersWithoutOverlap();
+
+        // Create buildings and structures function
+        function createBuildingsAndStructures() {
+            const buildings = [];
+            
+            // Create texture for buildings
+            function createBuildingTexture(color1, color2, windowColor) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+                
+                // Base building color
+                ctx.fillStyle = color1;
+                ctx.fillRect(0, 0, 256, 256);
+                
+                // Add windows
+                ctx.fillStyle = windowColor;
+                const windowSize = 15;
+                const windowGap = 8;
+                const windowsPerRow = Math.floor(256 / (windowSize + windowGap));
+                
+                for (let y = windowGap; y < 256 - windowSize; y += windowSize + windowGap) {
+                    for (let x = windowGap; x < 256 - windowSize; x += windowSize + windowGap) {
+                        // Add some randomness to window appearance
+                        if (Math.random() > 0.2) { // 80% chance of window
+                            ctx.fillRect(x, y, windowSize, windowSize);
+                        }
+                    }
+                }
+                
+                // Add architectural details
+                ctx.fillStyle = color2;
+                ctx.fillRect(0, 0, 256, 5); // Top detail
+                ctx.fillRect(0, 0, 5, 256); // Left detail
+                ctx.fillRect(0, 251, 256, 5); // Bottom detail
+                ctx.fillRect(251, 0, 5, 256); // Right detail
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                return texture;
+            }
+            
+            // Define areas/districts in the map
+            const districts = {
+                residential: { 
+                    center: { x: -25, z: 15 }, // Southwest area
+                    radius: 20
+                },
+                downtown: { 
+                    center: { x: 5, z: -5 }, // Center of map
+                    radius: 15 
+                },
+                industrial: { 
+                    center: { x: 30, z: -30 }, // Northeast area
+                    radius: 20
+                }
+            };
+            
+            // 1. Create residential houses along a street pattern
+            const houseColors = [
+                {main: '#D3B88C', trim: '#A67D5D', windows: '#3A506B'},
+                {main: '#BC8F8F', trim: '#8B636C', windows: '#3C4C5B'},
+                {main: '#B5B8A3', trim: '#889183', windows: '#2D4654'},
+                {main: '#D8C3A5', trim: '#95836F', windows: '#2E4756'},
+                {main: '#C6C5B9', trim: '#93918A', windows: '#31404D'}
+            ];
+            
+            // Create a residential street with houses on both sides
+            const streetStart = new THREE.Vector2(districts.residential.center.x - 15, districts.residential.center.z - 10);
+            const streetEnd = new THREE.Vector2(districts.residential.center.x + 15, districts.residential.center.z + 10);
+            
+            // Create 5 houses along the street
+            const housePositions = [
+                // Left side of street
+                { x: streetStart.x - 8, z: streetStart.y - 2, rotation: Math.PI/2 },
+                { x: streetStart.x - 8, z: streetStart.y + 8, rotation: Math.PI/2 },
+                { x: streetStart.x - 8, z: streetStart.y + 18, rotation: Math.PI/2 },
+                
+                // Right side of street
+                { x: streetStart.x + 8, z: streetStart.y + 3, rotation: -Math.PI/2 },
+                { x: streetStart.x + 8, z: streetStart.y + 13, rotation: -Math.PI/2 },
+            ];
+            
+            for (let i = 0; i < housePositions.length; i++) {
+                const position = housePositions[i];
+                
+                // Check if too close to terrain zones
+                let tooCloseToTerrain = false;
+                for (const zone of terrainZones) {
+                    const zonePosition = new THREE.Vector2(zone.mesh.position.x, zone.mesh.position.z);
+                    const buildingPosition = new THREE.Vector2(position.x, position.z);
+                    const distanceToZone = zonePosition.distanceTo(buildingPosition);
+                    if (distanceToZone < zone.mesh.geometry.parameters.radius + 2) {
+                        tooCloseToTerrain = true;
+                        break;
+                    }
+                }
+                
+                if (!tooCloseToTerrain) {
+                    // Create a house
+                    const colorScheme = houseColors[i % houseColors.length];
+                    const texture = createBuildingTexture(colorScheme.main, colorScheme.trim, colorScheme.windows);
+                    
+                    // House size - slightly randomized but similar
+                    const width = 4 + Math.random();
+                    const height = 3 + Math.random() * 0.5;
+                    const depth = 5 + Math.random();
+                    
+                    // House body
+                    const houseGroup = new THREE.Group();
+                    const houseGeometry = new THREE.BoxGeometry(width, height, depth);
+                    const houseMaterial = new THREE.MeshPhongMaterial({ 
+                        map: texture,
+                        shininess: 5
+                    });
+                    
+                    const houseMesh = new THREE.Mesh(houseGeometry, houseMaterial);
+                    houseMesh.position.y = height / 2;
+                    houseMesh.castShadow = true;
+                    houseMesh.receiveShadow = true;
+                    houseGroup.add(houseMesh);
+                    
+                    // Roof
+                    const roofHeight = height * 0.5;
+                    const roofOverhang = 0.3;
+                    
+                    // Roof created using a rectangular pyramid shape
+                    const roofGeometry = new THREE.ConeGeometry(
+                        Math.sqrt((width + roofOverhang * 2) ** 2 + (depth + roofOverhang * 2) ** 2) / 2,
+                        roofHeight,
+                        4,
+                        1
+                    );
+                    roofGeometry.rotateY(Math.PI / 4); // Rotate to align with house
+                    
+                    const roofMaterial = new THREE.MeshPhongMaterial({
+                        color: colorScheme.trim,
+                        shininess: 5
+                    });
+                    
+                    const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+                    roof.position.y = height + roofHeight / 2;
+                    roof.castShadow = true;
+                    houseGroup.add(roof);
+                    
+                    // Position the house group
+                    houseGroup.position.set(position.x, 0, position.z);
+                    houseGroup.rotation.y = position.rotation;
+                    
+                    scene.add(houseGroup);
+                    buildings.push(houseGroup);
+                }
+            }
+            
+            // 2. Create downtown/commercial district with larger buildings
+            const buildingColors = [
+                {main: '#8C8C8C', trim: '#686868', windows: '#3A506B'},
+                {main: '#A8A8A8', trim: '#787878', windows: '#2E4756'},
+                {main: '#607D8B', trim: '#455A64', windows: '#ECEFF1'}
+            ];
+            
+            // Downtown buildings positions
+            const downtownPositions = [
+                // Central area
+                { x: districts.downtown.center.x, z: districts.downtown.center.z, height: 15, width: 8, depth: 8 },
+                { x: districts.downtown.center.x - 12, z: districts.downtown.center.z - 5, height: 12, width: 7, depth: 7 },
+                { x: districts.downtown.center.x + 10, z: districts.downtown.center.z + 8, height: 14, width: 7, depth: 7 }
+            ];
+            
+            for (let i = 0; i < downtownPositions.length; i++) {
+                const position = downtownPositions[i];
+                
+                // Check if too close to terrain zones
+                let tooCloseToTerrain = false;
+                for (const zone of terrainZones) {
+                    const zonePosition = new THREE.Vector2(zone.mesh.position.x, zone.mesh.position.z);
+                    const buildingPosition = new THREE.Vector2(position.x, position.z);
+                    const distanceToZone = zonePosition.distanceTo(buildingPosition);
+                    if (distanceToZone < zone.mesh.geometry.parameters.radius + 3) {
+                        tooCloseToTerrain = true;
+                        break;
+                    }
+                }
+                
+                if (!tooCloseToTerrain) {
+                    // Create a large building
+                    const colorScheme = buildingColors[i % buildingColors.length];
+                    const texture = createBuildingTexture(colorScheme.main, colorScheme.trim, colorScheme.windows);
+                    
+                    const buildingGroup = new THREE.Group();
+                    
+                    // Tall building with dimensions from the position data
+                    const width = position.width;
+                    const height = position.height;
+                    const depth = position.depth;
+                    
+                    // Main building body
+                    const buildingGeometry = new THREE.BoxGeometry(width, height, depth);
+                    const buildingMaterial = new THREE.MeshPhongMaterial({ 
+                        map: texture,
+                        shininess: 5
+                    });
+                    
+                    const buildingMesh = new THREE.Mesh(buildingGeometry, buildingMaterial);
+                    buildingMesh.position.y = height / 2;
+                    buildingMesh.castShadow = true;
+                    buildingMesh.receiveShadow = true;
+                    buildingGroup.add(buildingMesh);
+                    
+                    // Add smaller sections to make the building more interesting for the tallest building
+                    if (i === 0) { // Only for the tallest/main building
+                        const sectionWidth = width * 0.7;
+                        const sectionHeight = height * 0.3;
+                        const sectionDepth = depth * 0.7;
+                        
+                        const sectionGeometry = new THREE.BoxGeometry(sectionWidth, sectionHeight, sectionDepth);
+                        const sectionMesh = new THREE.Mesh(sectionGeometry, buildingMaterial);
+                        sectionMesh.position.set(
+                            0,
+                            height + sectionHeight / 2,
+                            0
+                        );
+                        sectionMesh.castShadow = true;
+                        buildingGroup.add(sectionMesh);
+                    }
+                    
+                    // Position the building
+                    buildingGroup.position.set(position.x, 0, position.z);
+                    buildingGroup.rotation.y = Math.random() * Math.PI / 6; // Slight rotation for variety
+                    
+                    scene.add(buildingGroup);
+                    buildings.push(buildingGroup);
+                }
+            }
+            
+            // 3. Add landmark structures at specific locations
+            
+            // Water tower in the industrial zone
+            const waterTowerPosition = { x: districts.industrial.center.x - 15, z: districts.industrial.center.z + 10 };
+            
+            // Check if position is clear of terrain zones
+            let canPlaceWaterTower = true;
+            for (const zone of terrainZones) {
+                const zonePosition = new THREE.Vector2(zone.mesh.position.x, zone.mesh.position.z);
+                const towerPosition = new THREE.Vector2(waterTowerPosition.x, waterTowerPosition.z);
+                const distanceToZone = zonePosition.distanceTo(towerPosition);
+                if (distanceToZone < zone.mesh.geometry.parameters.radius + 5) {
+                    canPlaceWaterTower = false;
+                    break;
+                }
+            }
+            
+            if (canPlaceWaterTower) {
+                // Create a water tower
+                const towerGroup = new THREE.Group();
+                
+                // Legs
+                const legMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x777777,
+                    shininess: 30
+                });
+                
+                const legRadius = 0.2;
+                const legHeight = 10;
+                const legGeometry = new THREE.CylinderGeometry(legRadius, legRadius, legHeight, 8);
+                
+                // Create 4 legs in X formation
+                const legDistance = 3;
+                for (let x = -1; x <= 1; x += 2) {
+                    for (let z = -1; z <= 1; z += 2) {
+                        const leg = new THREE.Mesh(legGeometry, legMaterial);
+                        leg.position.set(x * legDistance / 2, legHeight / 2, z * legDistance / 2);
+                        leg.castShadow = true;
+                        towerGroup.add(leg);
+                    }
+                }
+                
+                // Tank
+                const tankRadius = 3;
+                const tankHeight = 2.5;
+                const tankGeometry = new THREE.CylinderGeometry(tankRadius, tankRadius, tankHeight, 16);
+                const tankMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x3A5F6F,
+                    shininess: 20
+                });
+                
+                const waterTank = new THREE.Mesh(tankGeometry, tankMaterial);
+                waterTank.position.y = legHeight;
+                waterTank.castShadow = true;
+                towerGroup.add(waterTank);
+                
+                // Roof cap
+                const roofGeometry = new THREE.ConeGeometry(tankRadius + 0.5, 1.5, 16);
+                const roofMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x2F4858,
+                    shininess: 30
+                });
+                
+                const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+                roof.position.y = legHeight + tankHeight / 2 + 0.75;
+                roof.castShadow = true;
+                towerGroup.add(roof);
+                
+                // Position the tower
+                towerGroup.position.set(waterTowerPosition.x, 0, waterTowerPosition.z);
+                
+                scene.add(towerGroup);
+                buildings.push(towerGroup);
+            }
+            
+            // Radio/communications tower in the center/downtown area - tall landmark
+            const radioTowerPosition = { x: districts.downtown.center.x + 20, z: districts.downtown.center.z - 12 };
+            
+            // Check if position is clear of terrain zones
+            let canPlaceRadioTower = true;
+            for (const zone of terrainZones) {
+                const zonePosition = new THREE.Vector2(zone.mesh.position.x, zone.mesh.position.z);
+                const towerPosition = new THREE.Vector2(radioTowerPosition.x, radioTowerPosition.z);
+                const distanceToZone = zonePosition.distanceTo(towerPosition);
+                if (distanceToZone < zone.mesh.geometry.parameters.radius + 5) {
+                    canPlaceRadioTower = false;
+                    break;
+                }
+            }
+            
+            if (canPlaceRadioTower) {
+                // Create a radio/communications tower
+                const towerGroup = new THREE.Group();
+                
+                // Base building
+                const baseGeometry = new THREE.BoxGeometry(4, 2, 4);
+                const baseMaterial = new THREE.MeshPhongMaterial({
+                    color: 0xA0A0A0,
+                    shininess: 10
+                });
+                
+                const base = new THREE.Mesh(baseGeometry, baseMaterial);
+                base.position.y = 1;
+                base.castShadow = true;
+                base.receiveShadow = true;
+                towerGroup.add(base);
+                
+                // Tower mast
+                const mastHeight = 18;
+                const mastGeometry = new THREE.CylinderGeometry(0.2, 0.5, mastHeight, 8);
+                const mastMaterial = new THREE.MeshPhongMaterial({
+                    color: 0xCCCCCC,
+                    shininess: 50
+                });
+                
+                const mast = new THREE.Mesh(mastGeometry, mastMaterial);
+                mast.position.y = 2 + mastHeight / 2;
+                mast.castShadow = true;
+                towerGroup.add(mast);
+                
+                // Add antenna elements at different heights
+                const antennaCount = 3;
+                const antennaHeight = 0.8;
+                const antennaWidth = 2;
+                const antennaDepth = 0.2;
+                const antennaGeometry = new THREE.BoxGeometry(antennaWidth, antennaHeight, antennaDepth);
+                const antennaMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x888888,
+                    shininess: 30
+                });
+                
+                for (let i = 0; i < antennaCount; i++) {
+                    const heightRatio = 0.6 + (i * 0.3); // Positions at 60%, 90%, 120% up the mast
+                    const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+                    antenna.position.y = 2 + (mastHeight * heightRatio);
+                    antenna.castShadow = true;
+                    towerGroup.add(antenna);
+                    
+                    // Add a perpendicular antenna element
+                    const crossAntenna = new THREE.Mesh(
+                        new THREE.BoxGeometry(antennaDepth, antennaHeight, antennaWidth),
+                        antennaMaterial
+                    );
+                    crossAntenna.position.y = 2 + (mastHeight * (heightRatio - 0.1));
+                    crossAntenna.castShadow = true;
+                    towerGroup.add(crossAntenna);
+                }
+                
+                // Add a dish antenna
+                const dishRadius = 1;
+                const dishGeometry = new THREE.SphereGeometry(dishRadius, 16, 16, 0, Math.PI);
+                const dishMaterial = new THREE.MeshPhongMaterial({
+                    color: 0xDDDDDD,
+                    shininess: 50
+                });
+                
+                const dish = new THREE.Mesh(dishGeometry, dishMaterial);
+                dish.rotation.x = Math.PI / 2;
+                dish.position.set(0, 2 + (mastHeight * 0.75), dishRadius);
+                dish.castShadow = true;
+                towerGroup.add(dish);
+                
+                // Add warning light at the top
+                const lightGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+                const lightMaterial = new THREE.MeshPhongMaterial({
+                    color: 0xFF0000,
+                    emissive: 0xFF0000,
+                    emissiveIntensity: 0.5,
+                    shininess: 80
+                });
+                
+                const light = new THREE.Mesh(lightGeometry, lightMaterial);
+                light.position.y = 2 + mastHeight + 0.3;
+                towerGroup.add(light);
+                
+                // Position the tower
+                towerGroup.position.set(radioTowerPosition.x, 0, radioTowerPosition.z);
+                
+                scene.add(towerGroup);
+                buildings.push(towerGroup);
+            }
+            
+            // 4. Add strategic smaller structures (sheds, barricades, etc.)
+            const smallStructurePositions = [
+                // Barricades at key locations
+                { x: -10, z: 30, type: 1, rotation: Math.PI / 4 },
+                { x: 20, z: 20, type: 1, rotation: 0 },
+                { x: -30, z: -20, type: 1, rotation: Math.PI / 6 },
+                
+                // Sheds in various locations
+                { x: -20, z: 0, type: 0, rotation: Math.PI / 3 },
+                { x: 25, z: -10, type: 0, rotation: 0 },
+                
+                // Rubble/debris in appropriate areas
+                { x: -40, z: 35, type: 2, rotation: 0 },
+                { x: 40, z: -40, type: 2, rotation: 0 },
+                { x: 10, z: 45, type: 2, rotation: 0 }
+            ];
+            
+            for (const position of smallStructurePositions) {
+                // Check if too close to terrain zones
+                let tooCloseToTerrain = false;
+                for (const zone of terrainZones) {
+                    const zonePosition = new THREE.Vector2(zone.mesh.position.x, zone.mesh.position.z);
+                    const structPosition = new THREE.Vector2(position.x, position.z);
+                    const distanceToZone = zonePosition.distanceTo(structPosition);
+                    if (distanceToZone < zone.mesh.geometry.parameters.radius + 2) {
+                        tooCloseToTerrain = true;
+                        break;
+                    }
+                }
+                
+                if (!tooCloseToTerrain) {
+                    const structureGroup = new THREE.Group();
+                    const structureType = position.type; // 0: shed, 1: barricade, 2: rubble
+                    
+                    if (structureType === 0) {
+                        // Shed
+                        const width = 2 + Math.random();
+                        const height = 2 + Math.random() * 0.5;
+                        const depth = 2 + Math.random();
+                        
+                        const shedMaterial = new THREE.MeshPhongMaterial({
+                            color: 0x7D623C,
+                            shininess: 5
+                        });
+                        
+                        const shedGeometry = new THREE.BoxGeometry(width, height, depth);
+                        const shed = new THREE.Mesh(shedGeometry, shedMaterial);
+                        shed.position.y = height / 2;
+                        shed.castShadow = true;
+                        shed.receiveShadow = true;
+                        structureGroup.add(shed);
+                        
+                        // Add a simple sloped roof
+                        const roofGeometry = new THREE.BoxGeometry(width + 0.3, 0.2, depth + 0.3);
+                        const roofMaterial = new THREE.MeshPhongMaterial({
+                            color: 0x5D4B35,
+                            shininess: 5
+                        });
+                        
+                        const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+                        roof.position.y = height + 0.1;
+                        if (Math.random() > 0.5) {
+                            // Sloped roof
+                            roof.rotation.z = Math.PI / 12;
+                            roof.position.x = width / 4;
+                        }
+                        roof.castShadow = true;
+                        structureGroup.add(roof);
+                    } 
+                    else if (structureType === 1) {
+                        // Barricades/concrete barriers
+                        const barrierLength = 3;
+                        const barrierHeight = 1;
+                        const barrierWidth = 0.5;
+                        
+                        const barrierMaterial = new THREE.MeshPhongMaterial({
+                            color: 0x888888,
+                            shininess: 5
+                        });
+                        
+                        // Create multiple barriers in a formation
+                        const barrierCount = 2 + Math.floor(Math.random() * 2);
+                        for (let j = 0; j < barrierCount; j++) {
+                            const barrierGeometry = new THREE.BoxGeometry(barrierWidth, barrierHeight, barrierLength);
+                            const barrier = new THREE.Mesh(barrierGeometry, barrierMaterial);
+                            
+                            // Position barriers in a line or zig-zag
+                            if (j % 2 === 0) {
+                                // Line formation
+                                barrier.position.set(
+                                    0,
+                                    barrierHeight / 2,
+                                    j * (barrierLength + 0.5) - (barrierCount * barrierLength) / 4
+                                );
+                            } else {
+                                // Zig-zag formation
+                                barrier.position.set(
+                                    ((j % 2) * 2 - 1) * barrierWidth,
+                                    barrierHeight / 2,
+                                    j * (barrierLength / 2) - (barrierCount * barrierLength) / 4
+                                );
+                                barrier.rotation.y = Math.PI / 6 * (j % 2 ? 1 : -1);
+                            }
+                            
+                            barrier.castShadow = true;
+                            barrier.receiveShadow = true;
+                            structureGroup.add(barrier);
+                        }
+                    }
+                    else if (structureType === 2) {
+                        // Rubble/debris pile
+                        const rubbleMaterial = new THREE.MeshPhongMaterial({
+                            color: 0x797979,
+                            shininess: 2
+                        });
+                        
+                        const rubbleCount = 5 + Math.floor(Math.random() * 5);
+                        const rubbleSize = 3;
+                        
+                        for (let j = 0; j < rubbleCount; j++) {
+                            // Create irregular shaped stones
+                            const geometry = new THREE.IcosahedronGeometry(
+                                0.2 + Math.random() * 0.6, // Random size
+                                0 // Detail level
+                            );
+                            
+                            // Random distortion
+                            const vertices = geometry.attributes.position.array;
+                            for (let i = 0; i < vertices.length; i++) {
+                                vertices[i] += (Math.random() - 0.5) * 0.2;
+                            }
+                            
+                            const rubble = new THREE.Mesh(geometry, rubbleMaterial);
+                            
+                            // Position within a circle
+                            const angle = Math.random() * Math.PI * 2;
+                            const radius = Math.random() * rubbleSize;
+                            rubble.position.set(
+                                Math.cos(angle) * radius,
+                                0.1 + Math.random() * 0.5, // Height just above ground
+                                Math.sin(angle) * radius
+                            );
+                            
+                            // Random rotation
+                            rubble.rotation.set(
+                                Math.random() * Math.PI,
+                                Math.random() * Math.PI,
+                                Math.random() * Math.PI
+                            );
+                            
+                            rubble.castShadow = true;
+                            rubble.receiveShadow = true;
+                            structureGroup.add(rubble);
+                        }
+                    }
+                    
+                    // Position the structure
+                    structureGroup.position.set(position.x, 0, position.z);
+                    structureGroup.rotation.y = position.rotation;
+                    
+                    scene.add(structureGroup);
+                    buildings.push(structureGroup);
+                }
+            }
+            
+            return buildings;
+        }
+        
+        // Create buildings and structures
+        const buildings = createBuildingsAndStructures();
+
+        // Replace simple tank model with a detailed model
+        function createTankModel(tankConfig) {
+            // Create a group to hold all tank parts
+            const tankGroup = new THREE.Group();
+            
+            // Create tank body (hull)
+            const hullWidth = tankConfig.bodyWidth;
+            const hullHeight = 0.8;
+            const hullLength = 3.5;
+            
+            const hullGeometry = new THREE.BoxGeometry(hullWidth, hullHeight, hullLength);
+            const tankMaterial = new THREE.MeshPhongMaterial({ 
+                color: tankConfig.color, 
+                shininess: 30,
+                flatShading: false
+            });
+            
+            const hull = new THREE.Mesh(hullGeometry, tankMaterial);
+            hull.castShadow = true;
+            hull.receiveShadow = true;
+            hull.position.set(0, hullHeight/2, 0);
+            tankGroup.add(hull);
+            
+            // Create tracks (left and right)
+            const trackWidth = hullWidth * 0.3;
+            const trackHeight = tankConfig.trackHeight;
+            const trackLength = hullLength;
+            
+            const trackGeometry = new THREE.BoxGeometry(trackWidth, trackHeight, trackLength);
+            const trackMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x1A1A1A, // Dark gray/black for tracks
+                shininess: 10
+            });
+            
+            // Left track
+            const leftTrack = new THREE.Mesh(trackGeometry, trackMaterial);
+            leftTrack.position.set(-hullWidth/2 + trackWidth/2, trackHeight/2, 0);
+            leftTrack.castShadow = true;
+            leftTrack.receiveShadow = true;
+            tankGroup.add(leftTrack);
+            
+            // Right track
+            const rightTrack = new THREE.Mesh(trackGeometry, trackMaterial);
+            rightTrack.position.set(hullWidth/2 - trackWidth/2, trackHeight/2, 0);
+            rightTrack.castShadow = true;
+            rightTrack.receiveShadow = true;
+            tankGroup.add(rightTrack);
+            
+            // Add track wheels (for visual detail)
+            const wheelsPerSide = 5;
+            const wheelRadius = trackHeight * 0.8;
+            const wheelDepth = trackWidth * 0.7;
+            const wheelGeometry = new THREE.CylinderGeometry(wheelRadius, wheelRadius, wheelDepth, 12);
+            const wheelMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x0F0F0F, // Darker than tracks
+                shininess: 5
+            });
+            
+            const wheelSpacing = trackLength * 0.8 / (wheelsPerSide - 1);
+            const wheelOffset = -trackLength * 0.4; // Start position
+            
+            for (let i = 0; i < wheelsPerSide; i++) {
+                // Left side wheels
+                const leftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                leftWheel.rotation.z = Math.PI / 2; // Orient wheels correctly
+                leftWheel.position.set(
+                    -hullWidth/2 + trackWidth/2,
+                    wheelRadius,
+                    wheelOffset + i * wheelSpacing
+                );
+                leftWheel.castShadow = true;
+                tankGroup.add(leftWheel);
+                
+                // Right side wheels
+                const rightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                rightWheel.rotation.z = Math.PI / 2;
+                rightWheel.position.set(
+                    hullWidth/2 - trackWidth/2,
+                    wheelRadius,
+                    wheelOffset + i * wheelSpacing
+                );
+                rightWheel.castShadow = true;
+                tankGroup.add(rightWheel);
+            }
+            
+            // Add side panels/skirts (if tank has them)
+            if (tankConfig.hasSidePanels) {
+                const panelHeight = hullHeight * 0.6;
+                const panelLength = hullLength * 0.7;
+                const panelGeometry = new THREE.BoxGeometry(0.1, panelHeight, panelLength);
+                const panelMaterial = new THREE.MeshPhongMaterial({ 
+                    color: tankConfig.color,
+                    shininess: 20
+                });
+                
+                // Left panel
+                const leftPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+                leftPanel.position.set(
+                    -hullWidth/2 - 0.05, 
+                    trackHeight + panelHeight/2, 
+                    0
+                );
+                leftPanel.castShadow = true;
+                tankGroup.add(leftPanel);
+                
+                // Right panel
+                const rightPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+                rightPanel.position.set(
+                    hullWidth/2 + 0.05, 
+                    trackHeight + panelHeight/2, 
+                    0
+                );
+                rightPanel.castShadow = true;
+                tankGroup.add(rightPanel);
+            }
+            
+            // Create turret base (rotating part)
+            const turretLength = tankConfig.turretLength;
+            const turretHeight = tankConfig.turretHeight;
+            const turretWidth = hullWidth * 0.8;
+            
+            // Unique turret shape for each tank
+            let turretGeometry;
+            
+            if (tankConfig.name === "T-90") {
+                // T-90 has a more dome-shaped turret
+                turretGeometry = new THREE.SphereGeometry(turretWidth/2, 16, 16);
+                turretGeometry.scale(1, turretHeight, turretLength/turretWidth);
+            } else if (tankConfig.name === "Abrams") {
+                // Abrams has an angular, sloped turret with a distinctive profile
+                turretGeometry = new THREE.BoxGeometry(turretWidth, turretHeight, turretLength);
+            } else if (tankConfig.name === "Challenger") {
+                // Challenger has a taller, more rectangular turret
+                turretGeometry = new THREE.BoxGeometry(turretWidth, turretHeight, turretLength);
+            } else {
+                // Default geometry for other tanks (trapezoid shape)
+                const turretShape = new THREE.Shape();
+                turretShape.moveTo(-turretWidth/2, -turretLength/2);
+                turretShape.lineTo(turretWidth/2, -turretLength/2);
+                turretShape.lineTo(turretWidth*0.4, turretLength/2);
+                turretShape.lineTo(-turretWidth*0.4, turretLength/2);
+                turretShape.lineTo(-turretWidth/2, -turretLength/2);
+                
+                const extrudeSettings = {
+                    steps: 1,
+                    depth: turretHeight,
+                    bevelEnabled: true,
+                    bevelThickness: 0.2,
+                    bevelSize: 0.1,
+                    bevelOffset: 0,
+                    bevelSegments: 3
+                };
+                
+                turretGeometry = new THREE.ExtrudeGeometry(turretShape, extrudeSettings);
+                // Adjust orientation for the extruded shape
+                turretGeometry.rotateX(-Math.PI/2);
+                turretGeometry.translate(0, turretHeight/2, 0);
+            }
+            
+            const turret = new THREE.Mesh(turretGeometry, tankMaterial);
+            turret.position.set(0, hullHeight + turretHeight/2, tankConfig.turretOffset);
+            turret.castShadow = true;
+            turret.receiveShadow = true;
+            tankGroup.add(turret);
+            
+            // Create main gun - adjusted to point along negative Z
+            const gunLength = tankConfig.gunLength;
+            const gunRadius = 0.15;
+            const gunGeometry = new THREE.CylinderGeometry(gunRadius, gunRadius, gunLength, 16);
+            const gunMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x333333, // Dark gray for gun
+                shininess: 50
+            });
+            
+            const gun = new THREE.Mesh(gunGeometry, gunMaterial);
+            // Adjust gun to point forward along negative Z-axis
+            gun.rotation.x = Math.PI / 2;
+            // Position the gun to extend forward from the turret (negative Z direction)
+            gun.position.set(0, hullHeight + turretHeight/2 - 0.1, tankConfig.turretOffset - turretLength/2 - gunLength/2);
+            gun.castShadow = true;
+            tankGroup.add(gun);
+            
+            // Add a muzzle brake/flash hider to the gun - adjusted for negative Z direction
+            const muzzleRadius = gunRadius * 1.3;
+            const muzzleLength = 0.3;
+            const muzzleGeometry = new THREE.CylinderGeometry(muzzleRadius, muzzleRadius, muzzleLength, 16);
+            const muzzle = new THREE.Mesh(muzzleGeometry, gunMaterial);
+            // Match gun orientation
+            muzzle.rotation.x = Math.PI / 2;
+            // Position at the end of the gun (in negative Z direction)
+            muzzle.position.set(0, hullHeight + turretHeight/2 - 0.1, tankConfig.turretOffset - turretLength/2 - gunLength + muzzleLength/2);
+            muzzle.castShadow = true;
+            tankGroup.add(muzzle);
+            
+            // Add antenna (if tank has one) - adjusted position
+            if (tankConfig.antennaHeight > 0) {
+                const antennaRadius = 0.03;
+                const antennaHeight = tankConfig.antennaHeight;
+                const antennaGeometry = new THREE.CylinderGeometry(antennaRadius, antennaRadius, antennaHeight, 8);
+                const antennaMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x111111, // Very dark for antenna
+                    shininess: 30
+                });
+                
+                const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+                // Position antenna on the back of the turret
+                antenna.position.set(turretWidth * 0.3, hullHeight + turretHeight + antennaHeight/2, tankConfig.turretOffset + turretLength/3);
+                tankGroup.add(antenna);
+            }
+            
+            // Add distinctive features for each tank type - adjusted positions
+            if (tankConfig.name === "Leopard") {
+                // Add smoke launchers to Leopard
+                const launcherGeometry = new THREE.BoxGeometry(0.15, 0.15, 0.3);
+                const launcherMaterial = new THREE.MeshPhongMaterial({ color: 0x222222 });
+                
+                for (let i = 0; i < 4; i++) {
+                    const launcher = new THREE.Mesh(launcherGeometry, launcherMaterial);
+                    launcher.position.set(
+                        turretWidth * 0.4 * (i % 2 === 0 ? 1 : -1),
+                        hullHeight + turretHeight,
+                        tankConfig.turretOffset + turretLength * 0.3
+                    );
+                    tankGroup.add(launcher);
+                }
+            } else if (tankConfig.name === "Abrams") {
+                // Add the distinctive commander's cupola for Abrams
+                const cupolaGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.3, 16);
+                const cupola = new THREE.Mesh(cupolaGeometry, tankMaterial);
+                cupola.position.set(
+                    turretWidth * 0.25,
+                    hullHeight + turretHeight + 0.15,
+                    tankConfig.turretOffset + turretLength * 0.2
+                );
+                tankGroup.add(cupola);
+                
+                // Add machine gun on top
+                const mgGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8);
+                const mg = new THREE.Mesh(mgGeometry, new THREE.MeshPhongMaterial({ color: 0x111111 }));
+                mg.rotation.x = Math.PI / 2; // Orient to point forward
+                mg.position.set(
+                    turretWidth * 0.25,
+                    hullHeight + turretHeight + 0.3,
+                    tankConfig.turretOffset + turretLength * 0.2 + 0.25
+                );
+                tankGroup.add(mg);
+            } else if (tankConfig.name === "T-90") {
+                // Add the distinctive "eyes" (IR dazzlers) of the T-90
+                const eyeRadius = 0.15;
+                const eyeGeometry = new THREE.SphereGeometry(eyeRadius, 16, 16);
+                const eyeMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xFF0000,
+                    emissive: 0xFF0000,
+                    emissiveIntensity: 0.5
+                });
+                
+                const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+                leftEye.position.set(
+                    -turretWidth * 0.25,
+                    hullHeight + turretHeight * 0.5,
+                    tankConfig.turretOffset - turretLength * 0.35
+                );
+                tankGroup.add(leftEye);
+                
+                const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+                rightEye.position.set(
+                    turretWidth * 0.25,
+                    hullHeight + turretHeight * 0.5,
+                    tankConfig.turretOffset - turretLength * 0.35
+                );
+                tankGroup.add(rightEye);
+            } else if (tankConfig.name === "Challenger") {
+                // Add the distinctive commander's sight for Challenger
+                const sightGeometry = new THREE.BoxGeometry(0.2, 0.15, 0.3);
+                const sight = new THREE.Mesh(sightGeometry, tankMaterial);
+                sight.position.set(
+                    turretWidth * 0.3,
+                    hullHeight + turretHeight + 0.07,
+                    tankConfig.turretOffset
+                );
+                tankGroup.add(sight);
+                
+                // Add distinctive side armor plates
+                const armorGeometry = new THREE.BoxGeometry(hullWidth * 1.1, 0.3, hullLength * 0.6);
+                const armor = new THREE.Mesh(armorGeometry, tankMaterial);
+                armor.position.set(0, hullHeight * 0.6, 0);
+                tankGroup.add(armor);
+            } else if (tankConfig.name === "Type 99") {
+                // Add laser rangefinder box for Type 99
+                const rangeFinderGeometry = new THREE.BoxGeometry(0.5, 0.1, 0.2);
+                const rangeFinder = new THREE.Mesh(rangeFinderGeometry, tankMaterial);
+                rangeFinder.position.set(
+                    0,
+                    hullHeight + turretHeight + 0.05,
+                    tankConfig.turretOffset - turretLength * 0.3
+                );
+                tankGroup.add(rangeFinder);
+                
+                // Add composite armor modules on the front
+                const armorModuleGeometry = new THREE.BoxGeometry(0.3, 0.2, 0.4);
+                const armorModuleMaterial = new THREE.MeshPhongMaterial({ color: 0x444444 });
+                
+                for (let i = -1; i <= 1; i += 2) {
+                    const armorModule = new THREE.Mesh(armorModuleGeometry, armorModuleMaterial);
+                    armorModule.position.set(
+                        i * hullWidth * 0.3,
+                        hullHeight * 0.7,
+                        -hullLength * 0.4
+                    );
+                    tankGroup.add(armorModule);
+                }
+            }
+            
+            return tankGroup;
+        }
+        
+        // Find a safe spawn location from predefined spawn points
+        function findSafeSpawnLocation() {
+            // Define strategic spawn points across the map
+            const spawnPoints = [
+                { x: 0, z: 0 },            // Center of the map - main spawn
+                { x: -20, z: -20 },        // Southwest spawn - moved further out
+                { x: 20, z: 20 },          // Northeast spawn - moved further out
+                { x: -20, z: 20 },         // Southeast spawn - moved further from residential area
+                { x: 20, z: -20 },         // Northwest spawn - moved further from industrial area
+                { x: 40, z: 0 },           // East spawn - moved further out
+                { x: -40, z: 0 },          // West spawn - moved further out
+                { x: 0, z: 40 },           // North spawn - moved further out
+                { x: 0, z: -40 },          // South spawn - moved further out
+                { x: 25, z: 25 },          // Additional Northeast corner spawn
+                { x: -25, z: -25 },        // Additional Southwest corner spawn
+                { x: 10, z: -30 }          // Additional spawn point in an open area
+            ];
+            
+            // Shuffle the spawn points array to check them in random order
+            const shuffledSpawnPoints = [...spawnPoints].sort(() => Math.random() - 0.5);
+            
+            // Create a list of safe spawn points
+            const safeSpawnPoints = [];
+            
+            // Check each spawn point and collect all safe ones
+            for (const spawnPoint of shuffledSpawnPoints) {
+                const testPosition = new THREE.Vector3(
+                    spawnPoint.x,
+                    0.5, // Height
+                    spawnPoint.z
+                );
+                
+                // Check distance from containers
+                let tooCloseToContainer = false;
+                for (const container of containers) {
+                    const distance = testPosition.distanceTo(container.position);
+                    if (distance < 10) { // Increased safe distance from 7 to 10
+                        tooCloseToContainer = true;
+                        break;
+                    }
+                }
+                
+                if (tooCloseToContainer) continue;
+                
+                // Check distance from special terrain
+                let inSpecialTerrain = false;
+                for (const zone of terrainZones) {
+                    const zonePosition = new THREE.Vector2(zone.mesh.position.x, zone.mesh.position.z);
+                    const testPosition2D = new THREE.Vector2(testPosition.x, testPosition.z);
+                    const distance = zonePosition.distanceTo(testPosition2D);
+                    
+                    if (distance < zone.mesh.geometry.parameters.radius) {
+                        inSpecialTerrain = true;
+                        break;
+                    }
+                }
+                
+                if (inSpecialTerrain) continue;
+                
+                // Check distance from buildings
+                let tooCloseToBuilding = false;
+                for (const building of buildings) {
+                    const distance = testPosition.distanceTo(building.position);
+                    if (distance < 12) { // Increased safe distance from 7 to 12 for buildings
+                        tooCloseToBuilding = true;
+                        break;
+                    }
+                }
+                
+                if (tooCloseToBuilding) continue;
+                
+                // If we've made it this far, the spawn point is safe
+                safeSpawnPoints.push(testPosition);
+            }
+            
+            // If we found at least one safe spawn point, randomly select one
+            if (safeSpawnPoints.length > 0) {
+                const randomIndex = Math.floor(Math.random() * safeSpawnPoints.length);
+                return safeSpawnPoints[randomIndex];
+            }
+            
+            // If all predefined points are blocked, return a fallback position in a likely open area
+            return new THREE.Vector3(30, 0.5, 30);
+        }
+        
+        // Create and place tank based on the selected type
+        const tank = createTankModel(currentTank);
+        tank.position.copy(findSafeSpawnLocation());
+        // The tank model is now constructed with the gun pointing along the negative Z-axis
+        // so we don't need to rotate it 180 degrees here
+        scene.add(tank);
+
+        // Add tank movement and physics functionality to the newly created tank model
+        const tankVelocity = new THREE.Vector3();
+
+        // Camera initial position
+        camera.position.set(0, 5, 10);
+
+        // Add orbit camera controls variables
+        let isMouseDown = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let cameraAzimuth = 0; // Horizontal angle around the tank
+        let cameraElevation = Math.atan2(5, 10); // Initial elevation based on default offset (0,5,10)
+        let cameraDistance = Math.sqrt(5*5 + 10*10); // Distance from tank
+        let cameraOrbitEnabled = false; // Whether orbit mode is active
+        let cameraDefaultOffset = new THREE.Vector3(0, 5, 10); // Default offset when not orbiting
+        
+        // Configure sensitivity and constraints
+        const ORBIT_SENSITIVITY = 0.005; // Adjust this to control orbit speed
+        const MIN_ELEVATION = -Math.PI/2.1; // Slightly above straight down
+        const MAX_ELEVATION = Math.PI/2.1; // Slightly below straight up
+        
+        // Add mouse event listeners for orbit controls
+        document.addEventListener('mousedown', (event) => {
+            if (event.button === 0) { // Left mouse button
+                isMouseDown = true;
+                lastMouseX = event.clientX;
+                lastMouseY = event.clientY;
+                cameraOrbitEnabled = true;
+            }
+        });
+        
+        document.addEventListener('mousemove', (event) => {
+            if (isMouseDown) {
+                // Calculate the change in mouse position
+                const deltaX = event.clientX - lastMouseX;
+                const deltaY = event.clientY - lastMouseY;
+                
+                // Update camera angles based on mouse movement
+                cameraAzimuth += deltaX * ORBIT_SENSITIVITY;
+                cameraElevation -= deltaY * ORBIT_SENSITIVITY; // Invert Y for natural controls
+                
+                // Clamp elevation to prevent flipping
+                cameraElevation = Math.max(MIN_ELEVATION, Math.min(MAX_ELEVATION, cameraElevation));
+                
+                // Update mouse position for next frame
+                lastMouseX = event.clientX;
+                lastMouseY = event.clientY;
+            }
+        });
+        
+        document.addEventListener('mouseup', (event) => {
+            if (event.button === 0) { // Left mouse button
+                isMouseDown = false;
+                // Keep the current orbit position when released
+                // Could add a smooth transition back to the default position if desired
+            }
+        });
+        
+        // Add a function to calculate camera position based on spherical coordinates
+        function updateOrbitCamera() {
+            if (cameraOrbitEnabled) {
+                // Convert spherical coordinates to Cartesian
+                const x = cameraDistance * Math.cos(cameraElevation) * Math.sin(cameraAzimuth);
+                const y = cameraDistance * Math.sin(cameraElevation);
+                const z = cameraDistance * Math.cos(cameraElevation) * Math.cos(cameraAzimuth);
+                
+                // Calculate camera position relative to tank
+                const targetPosition = new THREE.Vector3(
+                    tank.position.x + x,
+                    tank.position.y + y,
+                    tank.position.z + z
+                );
+                
+                // Update camera position with some smoothing
+                camera.position.lerp(targetPosition, 0.1);
+                
+                // Make camera look at the tank
+                camera.lookAt(tank.position);
+                
+                return true; // Camera was updated by orbit controls
+            }
+            return false; // Orbit controls not active
+        }
+
+        // Controls and movement
+        const keys = {};
+        
+        // Function to detect mobile devices
+        function isMobileDevice() {
+            return (window.innerWidth <= 768) || 
+                   ('ontouchstart' in window) || 
+                   (navigator.maxTouchPoints > 0) || 
+                   (navigator.msMaxTouchPoints > 0);
+        }
+        
+        // Initialize device type detection
+        const isMobile = isMobileDevice();
+        
+        // Initialize touch controls for mobile
+        function initTouchControls() {
+            const joystickContainer = document.getElementById('joystickContainer');
+            const joystickKnob = document.getElementById('joystickKnob');
+            const fireTouchButton = document.getElementById('fireTouchButton');
+            
+            if (!joystickContainer || !joystickKnob || !fireTouchButton) {
+                console.warn('Touch control elements not found, waiting for DOM...');
+                return;
+            }
+            
+            let joystickActive = false;
+            let joystickOriginX = 0;
+            let joystickOriginY = 0;
+            
+            // Prevent scrolling on the entire game container
+            document.body.addEventListener('touchmove', function(e) {
+                if (e.target === joystickContainer || e.target === fireTouchButton) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            // Joystick touch start
+            joystickContainer.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const rect = joystickContainer.getBoundingClientRect();
+                
+                joystickOriginX = rect.left + rect.width / 2;
+                joystickOriginY = rect.top + rect.height / 2;
+                
+                joystickActive = true;
+                updateJoystickPosition(touch.clientX, touch.clientY);
+            }, { passive: false });
+            
+            // Joystick touch move
+            document.addEventListener('touchmove', function(e) {
+                if (!joystickActive) return;
+                e.preventDefault();
+                
+                const touch = e.touches[0];
+                updateJoystickPosition(touch.clientX, touch.clientY);
+            }, { passive: false });
+            
+            // Joystick touch end
+            document.addEventListener('touchend', function(e) {
+                if (!joystickActive) return;
+                
+                joystickActive = false;
+                joystickKnob.style.transform = 'translate(-50%, -50%)';
+                
+                // Reset all movement keys
+                keys['ArrowUp'] = false;
+                keys['ArrowDown'] = false;
+                keys['ArrowLeft'] = false;
+                keys['ArrowRight'] = false;
+            });
+            
+            // Fire button touch
+            fireTouchButton.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                if (canShoot && !isReloading) {
+                    createProjectile();
+                }
+            }, { passive: false });
+            
+            function updateJoystickPosition(touchX, touchY) {
+                // Calculate distance from center
+                let deltaX = touchX - joystickOriginX;
+                let deltaY = touchY - joystickOriginY;
+                
+                // Limit to joystick radius
+                const maxRadius = joystickContainer.offsetWidth / 3;
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                
+                if (distance > maxRadius) {
+                    const angle = Math.atan2(deltaY, deltaX);
+                    deltaX = Math.cos(angle) * maxRadius;
+                    deltaY = Math.sin(angle) * maxRadius;
+                }
+                
+                // Update knob position
+                joystickKnob.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
+                
+                // Normalize for controls (values between -1 and 1)
+                const normalizedX = deltaX / maxRadius;
+                const normalizedY = deltaY / maxRadius;
+                
+                // Update movement based on joystick position with deadzone
+                const deadzone = 0.2;
+                keys['ArrowUp'] = normalizedY < -deadzone;
+                keys['ArrowDown'] = normalizedY > deadzone;
+                keys['ArrowLeft'] = normalizedX < -deadzone;
+                keys['ArrowRight'] = normalizedX > deadzone;
+            }
+        }
+        
+        // Keyboard control functions
+        function onKeyDown(event) {
+            keys[event.key] = true;
+            switch(event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    keys['ArrowUp'] = true;
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    keys['ArrowDown'] = true;
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    keys['ArrowLeft'] = true;
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    keys['ArrowRight'] = true;
+                    break;
+                case 'Space':
+                    if (canShoot && !isReloading) {
+                        createProjectile();
+                    }
+                    break;
+            }
+        }
+        
+        function onKeyUp(event) {
+            keys[event.key] = false;
+            switch(event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    keys['ArrowUp'] = false;
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    keys['ArrowDown'] = false;
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    keys['ArrowLeft'] = false;
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    keys['ArrowRight'] = false;
+                    break;
+            }
+        }
+        
+        // Initialize controls based on device type
+        if (!isMobile) {
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+        } else {
+            initTouchControls();
+        }
+        
+        // Use tank-specific values from the selected tank
+        baseMaxSpeed = currentTank.maxSpeed; // Use the global variable
+        const baseAcceleration = currentTank.acceleration;
+        const weight = currentTank.weight;
+        const rotationSpeed = 0.02;
+        
+        // Advanced physics parameters
+        const frictionCoefficient = 0.97; // Base friction (air resistance)
+        const terrainResistance = 0.002; // Resistance from terrain
+        const weightFactor = 0.0001; // How much weight affects acceleration
+        const speedFalloff = 4; // How quickly acceleration falls off as speed increases
+        
+        // Improved movement parameters
+        const rotationSmoothingFactor = 0.15; // How smoothly the tank rotates (higher = smoother but slower response)
+        const maxRotationSpeed = 0.025; // Maximum rotation speed in radians per frame
+        const minRotationSpeed = 0.012; // Minimum rotation speed at max velocity
+        let currentRotationVelocity = 0; // Current rotation velocity with inertia
+        const movementSmoothingFactor = 0.1; // How smoothly the tank acceleration is applied (higher = smoother)
+        
+        // Track the current terrain the tank is on
+        let currentTerrain = {
+            type: 'normal',
+            resistanceMultiplier: 1,
+            accelerationMultiplier: 1
+        };
+        
+        // Function to check which terrain the tank is on
+        function detectTerrain(position) {
+            // Default to normal terrain
+            let terrain = {
+                type: 'normal',
+                resistanceMultiplier: 1,
+                accelerationMultiplier: 1
+            };
+            
+            // Check if tank is in any special terrain zone
+            for (const zone of terrainZones) {
+                // Simple distance-based check for circular zones
+                const zoneMesh = zone.mesh;
+                const zonePosition = new THREE.Vector2(zoneMesh.position.x, zoneMesh.position.z);
+                const tankPosition = new THREE.Vector2(position.x, position.z);
+                const radius = zone.mesh.geometry.parameters.radius;
+                
+                if (zonePosition.distanceTo(tankPosition) < radius) {
+                    terrain = zone;
+                    break; // Use the first matching terrain
+                }
+            }
+            
+            return terrain;
+        }
+        
+        // Realistic physics model for acceleration based on current speed and terrain
+        function calculateAcceleration(currentSpeed) {
+            // As the tank approaches max speed, acceleration decreases
+            // heavier tanks have more trouble accelerating
+            const speedRatio = currentSpeed / baseMaxSpeed;
+            const weightPenalty = weight * weightFactor;
+            
+            // Exponential falloff of acceleration as speed increases
+            const accelFactor = Math.pow(1 - speedRatio, speedFalloff);
+            
+            // Apply weight penalty and terrain effects to acceleration
+            return baseAcceleration * accelFactor * 
+                  (1 - weightPenalty) * 
+                  currentTerrain.accelerationMultiplier;
+        }
+        
+        // More sophisticated friction model based on speed and terrain
+        function calculateFriction(speed) {
+            // Friction increases as speed increases (simulating air/terrain resistance)
+            const speedPenalty = terrainResistance * speed * speed;
+            return (frictionCoefficient - speedPenalty) * 
+                   currentTerrain.resistanceMultiplier;
+        }
+        
+        // Calculate dynamic rotation speed based on current velocity
+        function calculateRotationSpeed() {
+            // Faster movement = slower turning (realistic tank physics)
+            const speedRatio = Math.min(tankVelocity.length() / baseMaxSpeed, 1);
+            
+            // Linear interpolation between max and min rotation speeds based on velocity
+            return maxRotationSpeed - speedRatio * (maxRotationSpeed - minRotationSpeed);
+        }
+        
+        // Calculate steering force based on tank's direction and velocity
+        function calculateSteeringForce() {
+            // Get the tank's current direction
+            const tankForward = new THREE.Vector3(0, 0, -1).applyQuaternion(tank.quaternion).normalize();
+            
+            // Calculate the angle between the tank's forward direction and its velocity
+            // If tank is barely moving, return no steering force
+            if (tankVelocity.length() < 0.01) return 0;
+            
+            // Normalize velocity for direction comparison
+            const normalizedVelocity = tankVelocity.clone().normalize();
+            
+            // Calculate the dot product to get cosine of angle
+            const dotProduct = tankForward.dot(normalizedVelocity);
+            
+            // Map from [-1, 1] to [0, 1] where 1 means aligned and 0 means perpendicular
+            const alignmentFactor = (dotProduct + 1) / 2; 
+            
+            // Return a steering factor that increases as alignment decreases
+            // This simulates the difficulty of turning a tank when moving sideways
+            return alignmentFactor * 0.08; // Adjust this multiplier to control steering effect strength
+        }
+        
+        // Speed display
+        function updateUnit() {
+            currentUnit = document.getElementById('unitSelectNew').value;
+            // Update both current and max speed displays
+            updateSpeedDisplay();
+            updateMaxSpeedDisplay();
+        }
+        
+        function calculateSpeed() {
+            const speedUnitsPerFrame = tankVelocity.length(); // Units per frame
+            const framesPerSecond = 60; // Assuming 60 FPS
+            const speedUnitsPerSecond = speedUnitsPerFrame * framesPerSecond;
+            const speedKmH = speedUnitsPerSecond * 3.6; // Arbitrary scale: 1 unit = 1m, then to km/h
+            const speedMph = speedKmH * 0.621371; // Convert km/h to mph
+            return currentUnit === 'km/h' ? speedKmH : speedMph;
+        }
+        
+        function calculateMaxSpeed() {
+            // Similar calculation for max speed
+            const maxSpeedUnitsPerSecond = baseMaxSpeed * 60; // Frames per second
+            const maxSpeedKmH = maxSpeedUnitsPerSecond * 3.6;
+            const maxSpeedMph = maxSpeedKmH * 0.621371;
+            return currentUnit === 'km/h' ? maxSpeedKmH : maxSpeedMph;
+        }
+        
+        // Function to get current speed in km/h (used by tank info popup)
+        function getCurrentSpeed() {
+            const speedUnitsPerFrame = tankVelocity.length(); // Units per frame
+            const framesPerSecond = 60; // Assuming 60 FPS
+            const speedUnitsPerSecond = speedUnitsPerFrame * framesPerSecond;
+            return speedUnitsPerSecond * 3.6; // Convert to km/h
+        }
+        
+        function updateSpeedDisplay() {
+            const speed = calculateSpeed();
+            document.getElementById('currentSpeed').textContent = "Speed: " + speed.toFixed(1) + " " + currentUnit;
+        }
+        
+        function updateMaxSpeedDisplay() {
+            const maxSpeed = calculateMaxSpeed();
+            document.getElementById('tankMaxSpeed').textContent = maxSpeed.toFixed(1) + " " + currentUnit;
+        }
+        
+        // Initialize max speed display
+        updateMaxSpeedDisplay();
+
+        // Collision detection
+        function checkCollision(newPosition) {
+            // Create a more accurate bounding box for the tank
+            const tankBox = new THREE.Box3();
+            // Base the dimensions on the tank's actual size
+            const tankHalfWidth = currentTank.bodyWidth / 2;
+            const tankHalfHeight = 0.8; // Adjusted for new taller tank model
+            const tankHalfLength = 1.8; // Adjusted for tank body
+            
+            tankBox.min.set(
+                newPosition.x - tankHalfWidth, 
+                newPosition.y - tankHalfHeight, 
+                newPosition.z - tankHalfLength
+            );
+            tankBox.max.set(
+                newPosition.x + tankHalfWidth, 
+                newPosition.y + tankHalfHeight, 
+                newPosition.z + tankHalfLength
+            );
+
+            // Check for collisions with containers
+            for (let container of containers) {
+                // Use more accurate dimensions for containers too
+                const containerBox = new THREE.Box3();
+                const containerHalfWidth = 2; // Half the width
+                const containerHalfHeight = 1; // Half the height
+                const containerHalfLength = 4; // Half the length
+                
+                // Need to account for container rotation
+                const rotationY = container.rotation.y;
+                
+                // Create corner points for the container
+                const corners = [
+                    new THREE.Vector3(-containerHalfWidth, -containerHalfHeight, -containerHalfLength),
+                    new THREE.Vector3(containerHalfWidth, -containerHalfHeight, -containerHalfLength),
+                    new THREE.Vector3(containerHalfWidth, -containerHalfHeight, containerHalfLength),
+                    new THREE.Vector3(-containerHalfWidth, -containerHalfHeight, containerHalfLength),
+                    new THREE.Vector3(-containerHalfWidth, containerHalfHeight, -containerHalfLength),
+                    new THREE.Vector3(containerHalfWidth, containerHalfHeight, -containerHalfLength),
+                    new THREE.Vector3(containerHalfWidth, containerHalfHeight, containerHalfLength),
+                    new THREE.Vector3(-containerHalfWidth, containerHalfHeight, containerHalfLength)
+                ];
+                
+                // Apply rotation and position to all corners
+                for (let corner of corners) {
+                    // Apply rotation
+                    const x = corner.x * Math.cos(rotationY) - corner.z * Math.sin(rotationY);
+                    const z = corner.x * Math.sin(rotationY) + corner.z * Math.cos(rotationY);
+                    corner.x = x;
+                    corner.z = z;
+                    
+                    // Apply position
+                    corner.add(container.position);
+                    
+                    // Expand the box to include this corner
+                    containerBox.expandByPoint(corner);
+                }
+                
+                if (tankBox.intersectsBox(containerBox)) {
+                    console.log("Collision detected with container!");
+                    return true;
+                }
+            }
+            
+            // Check for collisions with buildings
+            for (let building of buildings) {
+                // Create a bounding box for each building
+                const buildingBox = new THREE.Box3().setFromObject(building);
+                
+                if (tankBox.intersectsBox(buildingBox)) {
+                    console.log("Collision detected with building!");
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+
+        // Create projection system variables
+        const projectiles = [];
+        let canShoot = true;
+        let lastShotTime = 0;
+
+        // Add shooting functionality
+        function createProjectile() {
+            // Get the tank's forward direction
+            const forwardDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(tank.quaternion).normalize();
+            
+            // Get the gun's position
+            const gunTip = new THREE.Vector3();
+            
+            // Get the tank's world position and config
+            const tankPosition = new THREE.Vector3();
+            tank.getWorldPosition(tankPosition);
+            
+            // Tank type-specific adjustments
+            if (currentTank.name === "T-90" || currentTank.name === "Type 99" || currentTank.name === "Leopard") {
+                // For these specific tanks, use a more direct approach
+                // First, get the tank's position and height
+                const hullHeight = 0.8;
+                const turretHeight = currentTank.turretHeight;
+                const turretOffset = currentTank.turretOffset;
+                const turretLength = currentTank.turretLength;
+                const gunLength = currentTank.gunLength;
+                
+                // Create a base position at the turret center
+                gunTip.copy(tankPosition);
+                gunTip.y += hullHeight + turretHeight/2 - 0.1; // Gun height from ground
+                
+                // Calculate horizontal offset based on turret and gun placement
+                // Move to gun tip in the forward direction
+                gunTip.add(forwardDirection.clone().multiplyScalar(turretLength/2 + gunLength));
+            } else {
+                // For other tanks, use the object detection approach
+                let gunObject = null;
+                let muzzleObject = null;
+                
+                tank.traverse(child => {
+                    // First, look for the muzzle which is at the tip of the gun
+                    if (child.geometry && child.geometry.type === 'CylinderGeometry' && 
+                        child.position.y > 1 && 
+                        child.rotation.x === Math.PI / 2 &&
+                        child.geometry.parameters.radiusTop > 0.15 &&
+                        child.geometry.parameters.height < 0.5) {
+                        muzzleObject = child;
+                    }
+                    // Then look for the gun which is longer
+                    else if (child.geometry && child.geometry.type === 'CylinderGeometry' && 
+                        child.position.y > 1 && 
+                        child.rotation.x === Math.PI / 2 &&
+                        child.geometry.parameters.height > 2.0) {  // Main gun is relatively long
+                        gunObject = child;
+                    }
+                });
+                
+                // Position at the tip of the gun
+                if (muzzleObject) {
+                    // Use the muzzle's position as that's at the tip of the gun
+                    // Adjust slightly forward from the muzzle position
+                    muzzleObject.getWorldPosition(gunTip);
+                    gunTip.add(forwardDirection.clone().multiplyScalar(muzzleObject.geometry.parameters.height/2 + 0.1));
+                } else if (gunObject) {
+                    // Convert local position of gun tip to world coordinates
+                    const gunLength = gunObject.geometry.parameters.height;
+                    gunObject.getWorldPosition(gunTip);
+                    // Move to end of gun (front of the gun is in negative Z direction when gun is rotated by PI/2 on X axis)
+                    gunTip.add(forwardDirection.clone().multiplyScalar(gunLength/2 + 0.1));
+                } else {
+                    // Fallback if gun not found
+                    gunTip.copy(tankPosition);
+                    gunTip.y += 1.5; // Approximate gun height
+                    // Move the starting position forward along the tank's direction
+                    gunTip.add(forwardDirection.clone().multiplyScalar(2.5));
+                }
+            }
+            
+            // Create projectile
+            const geometry = new THREE.SphereGeometry(currentTank.projectileSize, 16, 16);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: 0xFFCC00, 
+                emissive: 0xFF6600,
+                emissiveIntensity: 0.5,
+                shininess: 80
+            });
+            
+            const projectile = new THREE.Mesh(geometry, material);
+            projectile.position.copy(gunTip);
+            projectile.castShadow = true;
+            
+            // Set the velocity based on tank's forward direction
+            projectile.userData = {
+                velocity: forwardDirection.clone().multiplyScalar(currentTank.projectileSpeed),
+                lifeTime: 0,
+                maxLifeTime: 100 // frames until auto-destroy
+            };
+            
+            scene.add(projectile);
+            projectiles.push(projectile);
+            
+            // Add a tail effect (trail)
+            addProjectileTrail(projectile);
+            
+            // Create muzzle flash effect
+            createMuzzleFlash(gunTip, forwardDirection);
+            
+            // Add sound effect for shooting
+            playShootSound();
+            
+            // Set cooldown
+            canShoot = false;
+            lastShotTime = Date.now();
+            
+            // Calculate dynamic reload time based on current speed
+            // Slower tanks have better fire rate (shorter reload time)
+            const currentSpeed = tankVelocity.length();
+            const maxSpeed = baseMaxSpeed;
+            const speedRatio = currentSpeed / maxSpeed;
+            
+            // Base reload time from tank config with a bonus for slower movement
+            // The formula: baseReloadTime * (0.7 + 0.6 * speedRatio)
+            // At max speed: reloadTime * 1.3 (30% longer reload)
+            // At zero speed: reloadTime * 0.7 (30% faster reload)
+            const dynamicReloadTime = currentTank.reloadTime * (0.7 + 0.6 * speedRatio);
+            
+            // Update the global variable to track current reload time
+            currentDynamicReloadTime = dynamicReloadTime;
+            
+            // Apply knockback effect - push tank in opposite direction of firing
+            const knockbackStrength = currentTank.projectileSpeed * 0.05; // Increased from 0.003 to make recoil more noticeable
+            const knockbackDirection = forwardDirection.clone().multiplyScalar(-knockbackStrength);
+            tankVelocity.add(knockbackDirection);
+            
+            setTimeout(() => {
+                canShoot = true;
+            }, dynamicReloadTime);
+        }
+        
+        function addProjectileTrail(projectile) {
+            // Create a trail behind the projectile
+            const trailGeometry = new THREE.CylinderGeometry(0.05, 0.15, 0.8, 8);
+            trailGeometry.rotateX(Math.PI / 2); // Align with projectile direction
+            
+            const trailMaterial = new THREE.MeshBasicMaterial({
+                color: 0xFF6600,
+                transparent: true,
+                opacity: 0.7
+            });
+            
+            const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+            trail.position.copy(projectile.position);
+            // Position it behind the projectile
+            trail.position.sub(projectile.userData.velocity.clone().normalize().multiplyScalar(0.5));
+            trail.userData = { projectile: projectile, offset: new THREE.Vector3(0, 0, 0.5) };
+            scene.add(trail);
+            
+            // Store reference to trail
+            if (!projectile.userData.trail) {
+                projectile.userData.trail = [];
+            }
+            projectile.userData.trail.push(trail);
+            
+            // Add a fade out effect
+            const fadeOutInterval = setInterval(() => {
+                if (trail.material.opacity > 0) {
+                    trail.material.opacity -= 0.05;
+                    trail.scale.multiplyScalar(0.95);
+                } else {
+                    clearInterval(fadeOutInterval);
+                    scene.remove(trail);
+                    trail.geometry.dispose();
+                    trail.material.dispose();
+                }
+            }, 50);
+        }
+        
+        function createMuzzleFlash(position, direction) {
+            // Create a bright flash at the muzzle
+            const flashGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+            const flashMaterial = new THREE.MeshBasicMaterial({
+                color: 0xFFFF00,
+                transparent: true,
+                opacity: 0.9
+            });
+            
+            const flash = new THREE.Mesh(flashGeometry, flashMaterial);
+            flash.position.copy(position);
+            scene.add(flash);
+            
+            // Animate the flash
+            let scale = 1;
+            const flashInterval = setInterval(() => {
+                scale -= 0.1;
+                flash.scale.set(scale, scale, scale);
+                flash.material.opacity -= 0.1;
+                
+                if (scale <= 0) {
+                    clearInterval(flashInterval);
+                    scene.remove(flash);
+                    flash.geometry.dispose();
+                    flash.material.dispose();
+                }
+            }, 30);
+            
+            // Add a directional, conical flash effect
+            const coneGeometry = new THREE.ConeGeometry(0.3, 1, 16);
+            coneGeometry.rotateX(Math.PI / 2); // Align with direction
+            
+            const coneMaterial = new THREE.MeshBasicMaterial({
+                color: 0xFFDD00,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const cone = new THREE.Mesh(coneGeometry, coneMaterial);
+            cone.position.copy(position);
+            // Position the wide part at the muzzle
+            cone.position.add(direction.clone().multiplyScalar(0.5));
+            cone.lookAt(position.clone().add(direction));
+            scene.add(cone);
+            
+            // Animate the cone flash
+            let coneScale = 1;
+            const coneInterval = setInterval(() => {
+                coneScale -= 0.15;
+                cone.scale.set(coneScale, coneScale, coneScale);
+                cone.material.opacity -= 0.15;
+                
+                if (coneScale <= 0) {
+                    clearInterval(coneInterval);
+                    scene.remove(cone);
+                    cone.geometry.dispose();
+                    cone.material.dispose();
+                }
+            }, 20);
+        }
+        
+        function playShootSound() {
+            // Create audio for shooting sound
+            // This is a simple implementation - a real game would use preloaded sounds
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(100, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(10, audioContext.currentTime + 0.2);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.2);
+            } catch (e) {
+                console.log("Audio not supported or context already created");
+            }
+        }
+        
+        function updateProjectiles() {
+            // Update each projectile
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const projectile = projectiles[i];
+                
+                // Move projectile
+                projectile.position.add(projectile.userData.velocity);
+                
+                // Update any trails
+                if (projectile.userData.trail) {
+                    projectile.userData.trail.forEach(trail => {
+                        if (trail && scene.children.includes(trail)) {
+                            trail.position.copy(projectile.position);
+                            trail.position.sub(projectile.userData.velocity.clone().normalize().multiplyScalar(0.5));
+                        }
+                    });
+                }
+                
+                // Increment lifetime
+                projectile.userData.lifeTime++;
+                
+                // Check for collisions with containers
+                if (checkProjectileCollision(projectile)) {
+                    createExplosion(projectile.position);
+                    removeProjectile(projectile, i);
+                    continue;
+                }
+                
+                // Check if projectile is out of bounds or exceeded max life
+                if (isOutOfBounds(projectile.position) || 
+                    projectile.userData.lifeTime > projectile.userData.maxLifeTime) {
+                    removeProjectile(projectile, i);
+                }
+            }
+        }
+        
+        function checkProjectileCollision(projectile) {
+            // Create a small bounding sphere for the projectile
+            const projectileRadius = currentTank.projectileSize;
+            const projectilePosition = projectile.position.clone();
+            
+            // Check for collisions with containers
+            for (let container of containers) {
+                // Use the same approach as tank collision detection
+                const containerBox = new THREE.Box3();
+                const containerHalfWidth = 2;
+                const containerHalfHeight = 1;
+                const containerHalfLength = 4;
+                
+                const rotationY = container.rotation.y;
+                
+                // Create corner points for the container
+                const corners = [
+                    new THREE.Vector3(-containerHalfWidth, -containerHalfHeight, -containerHalfLength),
+                    new THREE.Vector3(containerHalfWidth, -containerHalfHeight, -containerHalfLength),
+                    new THREE.Vector3(containerHalfWidth, -containerHalfHeight, containerHalfLength),
+                    new THREE.Vector3(-containerHalfWidth, -containerHalfHeight, containerHalfLength),
+                    new THREE.Vector3(-containerHalfWidth, containerHalfHeight, -containerHalfLength),
+                    new THREE.Vector3(containerHalfWidth, containerHalfHeight, -containerHalfLength),
+                    new THREE.Vector3(containerHalfWidth, containerHalfHeight, containerHalfLength),
+                    new THREE.Vector3(-containerHalfWidth, containerHalfHeight, containerHalfLength)
+                ];
+                
+                // Apply rotation and position to all corners
+                for (let corner of corners) {
+                    const x = corner.x * Math.cos(rotationY) - corner.z * Math.sin(rotationY);
+                    const z = corner.x * Math.sin(rotationY) + corner.z * Math.cos(rotationY);
+                    corner.x = x;
+                    corner.z = z;
+                    corner.add(container.position);
+                    containerBox.expandByPoint(corner);
+                }
+                
+                // Check if projectile sphere intersects container box
+                if (containerBox.containsPoint(projectilePosition)) {
+                    return true;
+                }
+            }
+            
+            // Check for collisions with buildings
+            for (let building of buildings) {
+                // Create a bounding box for the building
+                const buildingBox = new THREE.Box3().setFromObject(building);
+                
+                // Check if projectile is inside building bounding box
+                if (buildingBox.containsPoint(projectilePosition)) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        function createExplosion(position) {
+            return false;
+        }
+        
+        function createExplosion(position) {
+            // Create explosion particle effect
+            const particleCount = 20;
+            const explosionRadius = 1;
+            
+            for (let i = 0; i < particleCount; i++) {
+                // Create a random direction vector
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                const dx = Math.sin(phi) * Math.cos(theta);
+                const dy = Math.sin(phi) * Math.sin(theta);
+                const dz = Math.cos(phi);
+                
+                const direction = new THREE.Vector3(dx, dy, dz);
+                
+                // Create a particle
+                const particleGeometry = new THREE.SphereGeometry(0.1 + Math.random() * 0.1, 8, 8);
+                const particleMaterial = new THREE.MeshBasicMaterial({
+                    color: new THREE.Color(
+                        0.8 + Math.random() * 0.2, // Red
+                        0.3 + Math.random() * 0.4, // Green
+                        0 // Blue
+                    ),
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                particle.position.copy(position);
+                // Add a slight random offset
+                particle.position.add(direction.clone().multiplyScalar(0.2));
+                
+                // Set velocity based on direction and random speed
+                const speed = 0.1 + Math.random() * 0.2;
+                particle.userData = {
+                    velocity: direction.clone().multiplyScalar(speed),
+                    lifeTime: 0,
+                    maxLifeTime: 30 + Math.floor(Math.random() * 20)
+                };
+                
+                scene.add(particle);
+                
+                // Create animation to fade out and remove
+                const animateParticle = () => {
+                    if (scene.children.includes(particle)) {
+                        particle.position.add(particle.userData.velocity);
+                        particle.userData.velocity.y -= 0.005; // Add gravity effect
+                        particle.userData.lifeTime++;
+                        
+                        // Fade out as it ages
+                        if (particle.userData.lifeTime > particle.userData.maxLifeTime * 0.7) {
+                            particle.material.opacity = 0.8 * (1 - (particle.userData.lifeTime - particle.userData.maxLifeTime * 0.7) / (particle.userData.maxLifeTime * 0.3));
+                        }
+                        
+                        // Remove when it reaches max life
+                        if (particle.userData.lifeTime >= particle.userData.maxLifeTime) {
+                            scene.remove(particle);
+                            particle.geometry.dispose();
+                            particle.material.dispose();
+                        } else {
+                            requestAnimationFrame(animateParticle);
+                        }
+                    }
+                };
+                
+                animateParticle();
+            }
+            
+            // Add explosion sound
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(60, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(30, audioContext.currentTime + 0.3);
+                
+                gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch (e) {
+                console.log("Audio not supported or context already created");
+            }
+        }
+        
+        function removeProjectile(projectile, index) {
+            // Remove any associated trails
+            if (projectile.userData.trail) {
+                projectile.userData.trail.forEach(trail => {
+                    if (trail && scene.children.includes(trail)) {
+                        scene.remove(trail);
+                        trail.geometry.dispose();
+                        trail.material.dispose();
+                    }
+                });
+            }
+            
+            // Remove the projectile
+            scene.remove(projectile);
+            projectile.geometry.dispose();
+            projectile.material.dispose();
+            projectiles.splice(index, 1);
+        }
+        
+        function isOutOfBounds(position) {
+            const mapBoundary = 50; // Slightly larger than the respawn boundary
+            return Math.abs(position.x) > mapBoundary || 
+                   Math.abs(position.z) > mapBoundary ||
+                   position.y < 0 || position.y > 20;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Animate clouds
+            if (skyElements.cloudPlane) {
+                skyElements.cloudPlane.position.x += 0.05;
+                skyElements.cloudPlane2.position.x -= 0.03;
+                
+                // Reset cloud positions when they've moved too far
+                if (skyElements.cloudPlane.position.x > 500) skyElements.cloudPlane.position.x = -500;
+                if (skyElements.cloudPlane2.position.x < -500) skyElements.cloudPlane2.position.x = 500;
+            }
+
+            // Animate mud zone (pulsating effect)
+            mudPulsePhase += 0.05;
+            const pulseScale = 1 + 0.1 * Math.sin(mudPulsePhase);
+            mudZone.scale.set(pulseScale, 1, pulseScale);
+            
+            // Animate boundary markers (slight rotation for visual effect)
+            boundaryMarkers.children.forEach((marker, index) => {
+                if (marker.userData) {
+                    // Create a wavy motion effect
+                    marker.userData.phase += 0.03;
+                    const yOffset = Math.sin(marker.userData.phase) * 0.2;
+                    marker.position.y = marker.userData.originalY + yOffset;
+                    
+                    // Pulse emissive intensity for a glowing effect
+                    if (marker.material) {
+                        marker.material.emissiveIntensity = 0.3 + 0.2 * Math.sin(marker.userData.phase);
+                    }
+                }
+            });
+            
+            // Detect terrain type at current position
+            currentTerrain = detectTerrain(tank.position);
+            document.getElementById('terrainName').textContent = "Terrain: " + currentTerrain.type.charAt(0).toUpperCase() + currentTerrain.type.slice(1);
+
+            // Movement logic - use tank quaternion to get the correct forward direction
+            const forwardDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(tank.quaternion).normalize();
+            
+            if (keys['w'] || keys['ArrowUp']) {
+                tankVelocity.add(forwardDirection.clone().multiplyScalar(calculateAcceleration(tankVelocity.length())));
+                // Get terrain-specific max speed multiplier
+                let maxSpeedMultiplier = 1; // Default for normal terrain
+                if (currentTerrain.type === 'Mud') {
+                    maxSpeedMultiplier = currentTerrain.maxSpeedMultiplier; // Use the multiplier from terrain config
+                } else if (currentTerrain.type === 'rocky') {
+                    maxSpeedMultiplier = currentTerrain.maxSpeedMultiplier; // Reduced speed in rocky terrain
+                }
+                
+                if (tankVelocity.length() > baseMaxSpeed * maxSpeedMultiplier) {
+                    tankVelocity.setLength(baseMaxSpeed * maxSpeedMultiplier);
+                }
+            }
+            if (keys['s'] || keys['ArrowDown']) {
+                tankVelocity.add(forwardDirection.clone().multiplyScalar(-calculateAcceleration(tankVelocity.length())));
+                // Get terrain-specific max speed multiplier
+                let maxSpeedMultiplier = 1; // Default for normal terrain
+                if (currentTerrain.type === 'Mud') {
+                    maxSpeedMultiplier = currentTerrain.maxSpeedMultiplier; // Use the multiplier from terrain config
+                } else if (currentTerrain.type === 'rocky') {
+                    maxSpeedMultiplier = currentTerrain.maxSpeedMultiplier; // Reduced speed in rocky terrain
+                }
+                
+                if (tankVelocity.length() > baseMaxSpeed * maxSpeedMultiplier) {
+                    tankVelocity.setLength(baseMaxSpeed * maxSpeedMultiplier);
+                }
+            }
+            
+            // Improved tank rotation with inertia
+            let targetRotationVelocity = 0; // Default to no rotation
+            const currentRotationSpeed = calculateRotationSpeed();
+            
+            if (keys['a'] || keys['ArrowLeft']) {
+                // Set target rotation velocity for left turn
+                targetRotationVelocity = currentRotationSpeed;
+            } else if (keys['d'] || keys['ArrowRight']) {
+                // Set target rotation velocity for right turn
+                targetRotationVelocity = -currentRotationSpeed;
+            }
+            
+            // Smoothly interpolate rotation velocity for more natural turning
+            currentRotationVelocity += (targetRotationVelocity - currentRotationVelocity) * rotationSmoothingFactor;
+            
+            // Apply rotation
+            tank.rotation.y += currentRotationVelocity;
+            
+            // Apply steering force - adjust velocity direction based on the tank's orientation
+            const steeringForce = calculateSteeringForce();
+            if (tankVelocity.length() > 0.01) { // Only apply steering if tank is moving
+                // Get tank's forward direction
+                const tankForward = new THREE.Vector3(0, 0, -1).applyQuaternion(tank.quaternion).normalize();
+                
+                // Interpolate velocity toward tank's forward/backward direction
+                tankVelocity.lerp(tankForward.multiplyScalar(tankVelocity.length() * Math.sign(tankVelocity.dot(tankForward))), steeringForce);
+            }
+
+            // Handle shooting
+            if (keys[' '] && canShoot) {
+                createProjectile();
+            }
+            
+            // Update reload status
+            if (!canShoot) {
+                const elapsed = Date.now() - lastShotTime;
+                if (elapsed >= currentDynamicReloadTime) {
+                    canShoot = true;
+                }
+                
+                // Update reload indicator with CSS-based progress bar
+                const percentComplete = Math.min(elapsed / currentDynamicReloadTime, 1) * 100;
+                const progressHtml = `
+                    <div style="display:inline-block; width:100px; height:10px; background-color:#333333; border:1px solid #666666;">
+                        <div style="width:${percentComplete}%; height:100%; background-color:#FF6600;"></div>
+                    </div> ${Math.floor(percentComplete)}%`;
+                document.getElementById('reloadInfo').innerHTML = `Reload: ${progressHtml}`;
+            } else {
+                document.getElementById('reloadInfo').innerHTML = 'Reload: <span style="color:#00FF00">READY</span>';
+            }
+            
+            // Update projectiles
+            updateProjectiles();
+
+            // Apply friction
+            tankVelocity.multiplyScalar(calculateFriction(tankVelocity.length()));
+            
+            // Apply mud "spiderweb" effect if the tank is in mud
+            if (currentTerrain.pullToCenter) {
+                const zone = currentTerrain.mesh;
+                const zoneCenter = new THREE.Vector2(zone.position.x, zone.position.z);
+                const tankPosition = new THREE.Vector2(tank.position.x, tank.position.z);
+                
+                // Calculate direction to center
+                const directionToCenter = new THREE.Vector2().subVectors(zoneCenter, tankPosition).normalize();
+                
+                // Calculate distance to center
+                const distanceToCenter = zoneCenter.distanceTo(tankPosition);
+                const zoneRadius = zone.geometry.parameters.radius;
+                
+                // As the tank gets closer to the edge, increase the pull strength
+                const normalizedDistance = distanceToCenter / zoneRadius;
+                const edgeFactor = Math.pow(normalizedDistance, 2); // Stronger near the edge
+                
+                // Apply pull force toward center, stronger near the edges
+                const pullStrength = currentTerrain.pullStrength * (0.5 + edgeFactor * 2);
+                tankVelocity.x += directionToCenter.x * pullStrength;
+                tankVelocity.z += directionToCenter.y * pullStrength;
+                
+                // Also add random "sticky" fluctuations to simulate being caught in web
+                if (Math.random() > 0.9) { // Reduced from 0.7 to 0.9 (less frequent randomness)
+                    const randomFactor = 0.0005; // Reduced from 0.002 to 0.0005 (less intense randomness)
+                    tankVelocity.x += (Math.random() - 0.5) * randomFactor;
+                    tankVelocity.z += (Math.random() - 0.5) * randomFactor;
+                }
+                
+                // Create a visual effect when tank is in the mud zone
+                if (Math.random() > 0.9) { // 10% chance each frame
+                    // Create a small particle effect behind the tank to show its speed
+                    const sparkGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+                    const sparkMaterial = new THREE.MeshBasicMaterial({ 
+                        color: 0xFFFF00,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    const spark = new THREE.Mesh(sparkGeometry, sparkMaterial);
+                    spark.position.copy(tank.position);
+                    spark.position.y = 0.5;
+                    scene.add(spark);
+                    
+                    // Remove spark after a short time
+                    setTimeout(() => {
+                        scene.remove(spark);
+                        spark.geometry.dispose();
+                        spark.material.dispose();
+                    }, 500);
+                }
+            }
+            
+            // Update position with collision check
+            const newPosition = tank.position.clone().add(tankVelocity);
+            if (!checkCollision(newPosition)) {
+                // Apply velocity with smoothing for more natural movement
+                tank.position.lerp(newPosition, 1); // Full movement but with proper collision detection
+            } else {
+                // On collision, reduce velocity by 90% but don't completely stop
+                // This prevents the tank from getting stuck against walls
+                tankVelocity.multiplyScalar(0.1);
+                
+                // Try to slide along the obstacle instead of stopping completely
+                // If we hit something, try moving just in X direction
+                const tryX = tank.position.clone();
+                tryX.x += tankVelocity.x;
+                
+                if (!checkCollision(tryX)) {
+                    tank.position.copy(tryX);
+                }
+                
+                // Try moving just in Z direction
+                const tryZ = tank.position.clone();
+                tryZ.z += tankVelocity.z;
+                
+                if (!checkCollision(tryZ)) {
+                    tank.position.copy(tryZ);
+                }
+            }
+
+            // Check for map boundaries and respawn if outside
+            const mapBoundary = 48; // Slightly less than half the ground size (100/2)
+            if (Math.abs(tank.position.x) > mapBoundary || Math.abs(tank.position.z) > mapBoundary) {
+                console.log("Tank outside map boundaries - respawning");
+                
+                // Reset tank velocity
+                tankVelocity.set(0, 0, 0);
+                
+                // Find a safe respawn location and move tank there
+                const respawnPosition = findSafeSpawnLocation();
+                tank.position.copy(respawnPosition);
+                
+                // Create a visual feedback element for respawn
+                showRespawnEffect();
+            }
+
+            // Keep tank on ground
+            tank.position.y = 0;
+
+            // Camera follows tank - Only use this if orbit camera is not active
+            const cameraUpdatedByOrbit = updateOrbitCamera();
+            if (!cameraUpdatedByOrbit) {
+                const offset = new THREE.Vector3(0, 5, 10);
+                const tankPosition = tank.position.clone();
+                const cameraPosition = tankPosition.clone().add(offset.applyQuaternion(tank.quaternion));
+                camera.position.lerp(cameraPosition, 0.1);
+                camera.lookAt(tank.position);
+            }
+            
+            // Update tank view camera for hexagonal display
+            // Position it in front of the tank to show the front/gun view
+            const tankFrontDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(tank.quaternion).normalize();
+            const tankRightDirection = new THREE.Vector3(1, 0, 0).applyQuaternion(tank.quaternion).normalize();
+            const tankUpDirection = new THREE.Vector3(0, 1, 0); // Up is always world up
+            
+            // Apply a dampened rotation to the tank view model
+            // Scale down the rotation to 1/3 of the actual tank rotation
+            // This creates the effect of showing turning while keeping the front visible
+            const rotationDampeningFactor = 0.3;
+            // Keep the base 180-degree rotation and apply the dampened turning effect
+            tankViewModel.rotation.y = Math.PI + (tank.rotation.y * rotationDampeningFactor);
+            
+            // Position camera to show a more zoomed out view of the tank
+            tankViewCamera.position.set(0, 3, 7); // Increased distance and height for a better overview
+            tankViewCamera.lookAt(0, 0, 0);
+            
+            // Wider FOV for a more zoomed out perspective
+            tankViewCamera.fov = 40;
+            tankViewCamera.updateProjectionMatrix();
+            
+            // Render main scene
+            renderer.render(scene, camera);
+            
+            // Render tank view
+            tankViewRenderer.render(tankViewScene, tankViewCamera);
+
+            // Update speed display
+            updateSpeedDisplay();
+            
+            // Update tank movement sounds
+            updateTankMovementSound();
+            
+            // Update mini map
+            updateMiniMap();
+        }
+        
+        // Function to show respawn visual effect
+        function showRespawnEffect() {
+            // Play respawn sound
+            playRespawnSound();
+            
+            // Create overlay element
+            const overlay = document.createElement('div');
+            overlay.style.position = 'absolute';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
+            overlay.style.pointerEvents = 'none';
+            overlay.style.zIndex = '1000';
+            overlay.style.transition = 'opacity 1s';
+            document.body.appendChild(overlay);
+            
+            // Display message
+            const message = document.createElement('div');
+            message.textContent = 'RESPAWNING...';
+            message.style.position = 'absolute';
+            message.style.top = '50%';
+            message.style.left = '50%';
+            message.style.transform = 'translate(-50%, -50%)';
+            message.style.color = 'white';
+            message.style.fontFamily = 'Arial, sans-serif';
+            message.style.fontSize = '24px';
+            message.style.fontWeight = 'bold';
+            overlay.appendChild(message);
+            
+            // Fade out and remove after a short time
+            setTimeout(() => {
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    document.body.removeChild(overlay);
+                }, 1000);
+            }, 800);
+        }
+        
+        // animate(); // Removed - now controlled by Play button
+
+        // Function to play fail sound when player respawns
+        function playRespawnSound() {
+            // Create audio for respawn/fail sound
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                // Create descending fail sound
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(220, audioContext.currentTime); // Start at A3
+                oscillator.frequency.exponentialRampToValueAtTime(110, audioContext.currentTime + 0.6); // Down to A2
+                
+                // Adjust volume
+                gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.8);
+            } catch (e) {
+                console.log("Audio not supported or context already created");
+            }
+        }
+
+        // Tank movement sound system
+        let audioContext;
+        let tankMovementSound = null;
+        let tankIdleSound = null;
+        let isMovementSoundPlaying = false;
+        
+        // Initialize audio context for tank sounds (called once at start)
+        function initTankSoundSystem() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                createTankSounds();
+            } catch (e) {
+                console.log("Audio context could not be created:", e);
+            }
+        }
+        
+        // Create tank-specific engine sounds based on tank type
+        function createTankSounds() {
+            if (!audioContext) return;
+            
+            // Clean up any existing sounds
+            if (tankMovementSound) {
+                tankMovementSound.stop();
+                tankMovementSound = null;
+            }
+            
+            if (tankIdleSound) {
+                tankIdleSound.stop();
+                tankIdleSound = null;
+            }
+            
+            // Create base oscillators for tank sound
+            let idleOscillator = audioContext.createOscillator();
+            let idleGain = audioContext.createGain();
+            let movementOscillator = audioContext.createOscillator();
+            let movementOscillator2 = audioContext.createOscillator();
+            let movementGain = audioContext.createGain();
+            
+            // Create a low-pass filter for more realistic sound
+            let filter = audioContext.createBiquadFilter();
+            filter.type = "lowpass";
+            filter.frequency.value = 400;
+            filter.Q.value = 5;
+            
+            // Create distortion for more realistic engine sound
+            let distortion = audioContext.createWaveShaper();
+            function makeDistortionCurve(amount) {
+                let k = typeof amount === 'number' ? amount : 50;
+                let n_samples = 44100;
+                let curve = new Float32Array(n_samples);
+                let deg = Math.PI / 180;
+                for (let i = 0; i < n_samples; ++i) {
+                    let x = i * 2 / n_samples - 1;
+                    curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+                }
+                return curve;
+            }
+            distortion.curve = makeDistortionCurve(100);
+            
+            // Customize sound based on tank type
+            let baseIdleFreq, baseMovementFreq, movementFreq2Offset;
+            
+            switch(currentTank.name) {
+                case "Leopard":
+                    // Higher-pitched, modern turbine sound
+                    baseIdleFreq = 80;
+                    baseMovementFreq = 120;
+                    movementFreq2Offset = 1.3;
+                    idleOscillator.type = "sawtooth";
+                    movementOscillator.type = "sawtooth";
+                    movementOscillator2.type = "triangle";
+                    filter.frequency.value = 500;
+                    break;
+                case "Abrams":
+                    // Distinctive turbine whine
+                    baseIdleFreq = 90;
+                    baseMovementFreq = 120;
+                    movementFreq2Offset = 1.5;
+                    idleOscillator.type = "sawtooth";
+                    movementOscillator.type = "sawtooth";
+                    movementOscillator2.type = "sine";
+                    filter.frequency.value = 600;
+                    break;
+                case "T-90":
+                    // Deeper, diesel sound
+                    baseIdleFreq = 60;
+                    baseMovementFreq = 100;
+                    movementFreq2Offset = 1.2;
+                    idleOscillator.type = "square";
+                    movementOscillator.type = "square";
+                    movementOscillator2.type = "triangle";
+                    filter.frequency.value = 350;
+                    break;
+                case "Challenger":
+                    // Heavy, powerful diesel
+                    baseIdleFreq = 50;
+                    baseMovementFreq = 90;
+                    movementFreq2Offset = 1.1;
+                    idleOscillator.type = "square";
+                    movementOscillator.type = "square";
+                    movementOscillator2.type = "sawtooth";
+                    filter.frequency.value = 300;
+                    break;
+                case "Type 99":
+                    // Medium diesel engine
+                    baseIdleFreq = 70;
+                    baseMovementFreq = 110;
+                    movementFreq2Offset = 1.25;
+                    idleOscillator.type = "square";
+                    movementOscillator.type = "sawtooth";
+                    movementOscillator2.type = "triangle";
+                    filter.frequency.value = 400;
+                    break;
+                default:
+                    // Default tank sound
+                    baseIdleFreq = 70;
+                    baseMovementFreq = 100;
+                    movementFreq2Offset = 1.2;
+                    idleOscillator.type = "square";
+                    movementOscillator.type = "sawtooth";
+                    movementOscillator2.type = "triangle";
+            }
+            
+            // Configure idle sound
+            idleOscillator.frequency.setValueAtTime(baseIdleFreq, audioContext.currentTime);
+            idleGain.gain.setValueAtTime(0.02, audioContext.currentTime); // Reduced from 0.05 to 0.02
+            
+            // Configure movement sound (two oscillators for richer sound)
+            movementOscillator.frequency.setValueAtTime(baseMovementFreq, audioContext.currentTime);
+            movementOscillator2.frequency.setValueAtTime(baseMovementFreq * movementFreq2Offset, audioContext.currentTime);
+            movementGain.gain.setValueAtTime(0, audioContext.currentTime); // Start silent
+            
+            // Connect everything
+            idleOscillator.connect(idleGain);
+            idleGain.connect(filter);
+            
+            movementOscillator.connect(movementGain);
+            movementOscillator2.connect(movementGain);
+            movementGain.connect(distortion);
+            distortion.connect(filter);
+            
+            filter.connect(audioContext.destination);
+            
+            // Start the oscillators
+            idleOscillator.start();
+            movementOscillator.start();
+            movementOscillator2.start();
+            
+            // Save references for later use
+            tankIdleSound = {
+                oscillator: idleOscillator,
+                gain: idleGain,
+                stop: function() {
+                    this.oscillator.stop();
+                }
+            };
+            
+            tankMovementSound = {
+                oscillator1: movementOscillator,
+                oscillator2: movementOscillator2,
+                gain: movementGain,
+                baseFreq: baseMovementFreq,
+                freqOffset: movementFreq2Offset,
+                stop: function() {
+                    this.oscillator1.stop();
+                    this.oscillator2.stop();
+                },
+                updateSpeed: function(speedRatio) {
+                    // Update volume based on speed (0-1)
+                    this.gain.gain.setTargetAtTime(
+                        Math.min(0.06, speedRatio * 0.06), // Reduced from 0.15 to 0.06
+                        audioContext.currentTime, 
+                        0.1
+                    );
+                    
+                    // Update pitch based on speed
+                    // Higher speed = higher pitch
+                    const freqMultiplier = 1 + speedRatio;
+                    this.oscillator1.frequency.setTargetAtTime(
+                        this.baseFreq * freqMultiplier, 
+                        audioContext.currentTime, 
+                        0.1
+                    );
+                    this.oscillator2.frequency.setTargetAtTime(
+                        this.baseFreq * this.freqOffset * freqMultiplier, 
+                        audioContext.currentTime, 
+                        0.1
+                    );
+                }
+            };
+            
+            isMovementSoundPlaying = true;
+        }
+        
+        // Update tank movement sound based on current speed
+        function updateTankMovementSound() {
+            if (!tankMovementSound || !gameStarted) return;
+            
+            // Calculate speed ratio (0 to 1)
+            const currentSpeed = tankVelocity.length();
+            const maxSpeed = baseMaxSpeed;
+            const speedRatio = Math.min(1, currentSpeed / maxSpeed);
+            
+            // Add slight randomness to the sound for more realism
+            const randomVariation = 1 + (Math.random() * 0.05 - 0.025);
+            
+            // If tank is moving, update movement sound parameters
+            if (speedRatio > 0.01) {
+                tankMovementSound.updateSpeed(speedRatio * randomVariation);
+                
+                // Add terrain-specific sound modifications
+                if (currentTerrain && currentTerrain.type === 'Mud') {
+                    // Lower frequency for mud to simulate resistance
+                    tankMovementSound.oscillator1.frequency.value *= 0.9;
+                } else if (currentTerrain && currentTerrain.type === 'rocky') {
+                    // Add more distortion for rocky terrain
+                    tankMovementSound.oscillator1.frequency.value *= 1.1;
+                }
+            } else {
+                // If almost stopped, reduce movement sound volume to 0
+                tankMovementSound.gain.gain.setTargetAtTime(0, audioContext.currentTime, 0.2);
+            }
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            // No need to resize the tank view canvas as it has a fixed size
+            // But we do need to update its camera aspect ratio if its container changes
+            tankViewCamera.aspect = 1; // Maintain a square aspect for the hexagon view
+            tankViewCamera.updateProjectionMatrix();
+            
+            // Update UI elements based on screen size
+            updateDynamicMenuSizing();
+        });
+        
+        // Function to detect mobile devices
+        function isMobileDevice() {
+            return (window.innerWidth <= 768) || 
+                   ('ontouchstart' in window) || 
+                   (navigator.maxTouchPoints > 0) || 
+                   (navigator.msMaxTouchPoints > 0);
+        }
+        
+        // Keyboard control functions
+        function onKeyDown(event) {
+            switch(event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    moveForward = true;
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    moveBackward = true;
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    moveLeft = true;
+                    rotateAngle = -1;
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    moveRight = true;
+                    rotateAngle = 1;
+                    break;
+                case 'Space':
+                    if (!isReloading) {
+                        fireTank();
+                    }
+                    break;
+            }
+        }
+        
+        function onKeyUp(event) {
+            switch(event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    moveForward = false;
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    moveBackward = false;
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    moveLeft = false;
+                    if (rotateAngle < 0) rotateAngle = 0;
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    moveRight = false;
+                    if (rotateAngle > 0) rotateAngle = 0;
+                    break;
+            }
+        }
+        
+        // Function to update UI elements based on screen size
+        function updateDynamicMenuSizing() {
+            const isCurrentlyMobile = isMobileDevice();
+            const touchControls = document.getElementById('touchControls');
+            const fireTouchButton = document.getElementById('fireTouchButton');
+            
+            if (isCurrentlyMobile) {
+                // Show mobile controls
+                touchControls.style.display = 'block';
+                fireTouchButton.style.display = 'flex';
+                
+                // Remove keyboard event listeners
+                document.removeEventListener('keydown', onKeyDown);
+                document.removeEventListener('keyup', onKeyUp);
+                
+                // Reset all movement keys
+                keys['ArrowUp'] = false;
+                keys['ArrowDown'] = false;
+                keys['ArrowLeft'] = false;
+                keys['ArrowRight'] = false;
+                
+                // Initialize touch controls if not already initialized
+                if (!window.touchControlsInitialized) {
+                    initTouchControls();
+                    window.touchControlsInitialized = true;
+                }
+            } else {
+                // Hide mobile controls
+                touchControls.style.display = 'none';
+                fireTouchButton.style.display = 'none';
+                
+                // Add keyboard event listeners
+                document.addEventListener('keydown', onKeyDown);
+                document.addEventListener('keyup', onKeyUp);
+            }
+            
+            // Update minimap and UI positions
+            const miniMap = document.getElementById('miniMapContainer');
+            if (miniMap) {
+                if (isCurrentlyMobile) {
+                    miniMap.style.bottom = window.innerWidth <= 480 ? '170px' : '190px';
+                    miniMap.style.left = window.innerWidth <= 480 ? '10px' : '20px';
+                } else {
+                    miniMap.style.bottom = '20px';
+                    miniMap.style.left = '20px';
+                }
+            }
+        }
+
+        // Call updateDynamicMenuSizing on load and resize
+        window.addEventListener('DOMContentLoaded', updateDynamicMenuSizing);
+        window.addEventListener('resize', updateDynamicMenuSizing);
+
+        // Initialize controls based on device type
+        document.addEventListener('DOMContentLoaded', function() {
+            if (isMobile) {
+                initTouchControls();
+                window.touchControlsInitialized = true;
+            } else {
+                document.addEventListener('keydown', onKeyDown);
+                document.addEventListener('keyup', onKeyUp);
+            }
+        });
+    </script>
+    
+    <!-- Touch Controls for Mobile -->
+    <div id="touchControls">
+        <div id="joystickContainer">
+            <div id="joystickKnob"></div>
+        </div>
+    </div>
+    <div id="fireTouchButton">FIRE</div>
+    
+</body>
+</html>
